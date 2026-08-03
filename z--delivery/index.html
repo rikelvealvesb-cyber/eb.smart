@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ZÉ DELIVERY</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+    body { background: #f3f4f6; color: #1f2937; }
+    header { background: #2563eb; color: white; padding: 30px 20px; text-align: center; border-bottom-left-radius: 25px; border-bottom-right-radius: 25px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+    .logo-container img { width: 80px; height: 80px; border-radius: 50%; object-fit: cover; border: 3px solid white; margin-bottom: 10px; }
+    h1 { font-size: 24px; margin-bottom: 5px; }
+    p.slogan { font-size: 14px; opacity: 0.9; }
+    .container { max-width: 600px; margin: 20px auto; padding: 0 15px; }
+    .section-title { font-size: 18px; font-weight: bold; margin: 20px 0 10px 5px; color: #374151; }
+    /* Estilo dos Cards de Produtos */
+    .product-card { background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.05); margin-bottom: 15px; display: flex; flex-direction: row; }
+    .product-img { width: 120px; height: 120px; object-fit: cover; }
+    .product-info { padding: 12px; display: flex; flex-direction: column; justify-content: space-between; flex: 1; }
+    .product-name { font-size: 16px; font-weight: bold; color: #111827; }
+    .product-desc { font-size: 12px; color: #6b7280; margin: 4px 0; }
+    .product-price { font-size: 15px; font-weight: bold; color: #2563eb; }
+    .actions { display: flex; gap: 8px; margin-top: 6px; }
+    .btn { padding: 6px 12px; border-radius: 6px; font-size: 12px; font-weight: bold; text-decoration: none; text-align: center; cursor: pointer; }
+    .btn-wpp { background: #25d366; color: white; flex: 1; }
+    .btn-pay { background: #009ee3; color: white; flex: 1; }
+    footer { text-align: center; padding: 20px; font-size: 12px; color: #9ca3af; }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="logo-container">
+      <img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcR1WzhWN13JZOEo6tVMW66z5N5DYseHKsrR0SswQZFcXA&s=10" onerror="this.style.display='none'">
+    </div>
+    <h1>ZÉ DELIVERY</h1>
+    <p class="slogan">Pediu, Chegou!!</p>
+  </header>
+  <div class="container">
+    <div class="section-title">Cardápio / Produtos</div>
+    
+    <!-- INICIO DOS PRODUTOS DINÂMICOS -->
+    <div class="product-card">
+  <img src="https://via.placeholder.com/150" class="product-img">
+  <div class="product-info">
+    <div>
+      <div class="product-name">Hambúrguer Exemplo</div>
+      <div class="product-desc">Delicioso hambúrguer artesanal com queijo.</div>
+      <div class="product-price">R$ 25,00</div>
+    </div>
+    <div class="actions">
+      <a href="https://wa.me/5511954962246?text=Olá!%20Quero%20o%20Hambúrguer%20Exemplo" class="btn btn-wpp">Pedir 📱</a>
+      <a href="https://link.mercadopago.com.br/exemplo" class="btn btn-pay">Pagar 💳</a>
+    </div>
+  </div>
+</div>
+    <!-- FIM DOS PRODUTOS -->
+  </div>
+  <footer>
+    Powered by Smart Creator &bull; Pedidos via WhatsApp & Online
+  </footer>
+</body>
+</html>
