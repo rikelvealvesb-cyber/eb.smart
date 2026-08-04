@@ -2,57 +2,436 @@
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cidade Virtual Online</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Mundo 3D Online - Crafting 3D e Login Avançado</title>
     <style>
-        * { box-sizing: border-box; }
-        body { margin: 0; background: #222; overflow: hidden; font-family: sans-serif; display: flex; flex-direction: column; height: 100vh; }
-        
-        /* O mapa ocupa o topo e meio da tela */
-        #cidade { position: relative; width: 100%; height: 55vh; background: #4caf50; overflow: hidden; border-bottom: 4px solid #333; }
-        
-        .avatar { position: absolute; width: 40px; height: 40px; background: #ffeb3b; border-radius: 50%; display: flex; flex-direction: column; align-items: center; justify-content: center; font-weight: bold; font-size: 11px; color: #333; transition: top 0.1s linear, left 0.1s linear; box-shadow: 0 2px 5px rgba(0,0,0,0.3); }
-        .balao { position: absolute; top: -28px; background: white; color: black; padding: 2px 6px; font-size: 10px; border-radius: 4px; white-space: nowrap; box-shadow: 0 2px 4px rgba(0,0,0,0.3); z-index: 10; }
-        
-        /* Controles direcionais na tela */
-        #painel-controles { background: #222; padding: 10px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px; height: 27vh; border-bottom: 2px solid #111; }
-        .linha-botoes { display: flex; gap: 40px; }
-        #painel-controles button { padding: 10px 20px; font-size: 15px; font-weight: bold; background: #444; color: white; border: none; border-radius: 6px; cursor: pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.4); }
-        #painel-controles button:active { background: #666; transform: scale(0.95); }
+        * { box-sizing: border-box; user-select: none; }
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #111; overflow: hidden; font-family: sans-serif; }
 
-        /* Painel do Chat */
-        #painel-chat { height: 18vh; background: #111; color: white; padding: 8px; display: flex; flex-direction: column; }
-        #mensagens { flex: 1; overflow-y: auto; font-size: 12px; margin-bottom: 5px; word-break: break-all; }
-        input { padding: 8px; border-radius: 4px; border: none; outline: none; font-size: 13px; }
+        #login-screen {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(17, 17, 17, 0.95);
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            z-index: 100; padding: 20px;
+        }
+        .login-card {
+            background: #222; border: 2px solid #444; padding: 25px;
+            border-radius: 12px; width: 100%; max-width: 340px; text-align: center;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.5);
+        }
+        .login-card h2 { color: #fff; margin-top: 0; margin-bottom: 5px; font-size: 20px; }
+        .login-card p { color: #aaa; font-size: 11px; margin-bottom: 15px; }
+        .login-card input {
+            width: 100%; padding: 12px; margin-bottom: 15px; background: #333;
+            border: 1px solid #555; color: #fff; border-radius: 6px; font-size: 16px; text-align: center; outline: none;
+        }
+        .gender-select { display: flex; justify-content: space-between; margin-bottom: 15px; gap: 10px; }
+        .gender-btn {
+            flex: 1; padding: 10px; background: #333; border: 2px solid #555;
+            color: #aaa; border-radius: 6px; font-weight: bold; cursor: pointer;
+        }
+        .gender-btn.selected-m { background: #1565c0; border-color: #2196f3; color: #fff; }
+        .gender-btn.selected-f { background: #ad1457; border-color: #e91e63; color: #fff; }
+        
+        .enter-btn {
+            width: 100%; padding: 12px; background: #4caf50; border: none;
+            color: white; font-weight: bold; font-size: 15px; border-radius: 6px; cursor: pointer; margin-bottom: 8px;
+        }
+
+        #game-wrapper { width: 100%; height: 100%; display: none; flex-direction: column; position: relative; }
+        #game-container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: #222; overflow: hidden; }
+
+        /* TELA DE MORTE */
+        #death-screen {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(183, 28, 28, 0.85); display: none; flex-direction: column;
+            align-items: center; justify-content: center; z-index: 2000; color: white; text-align: center;
+        }
+        #death-screen h1 { font-size: 36px; margin-bottom: 10px; text-shadow: 2px 2px 0 #000; }
+        #death-screen p { font-size: 16px; margin-bottom: 20px; }
+        .spawn-btn {
+            background: #222; border: 2px solid #fff; color: white; padding: 10px 20px;
+            font-size: 15px; font-weight: bold; border-radius: 8px; cursor: pointer; margin: 5px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+        }
+
+        /* HUD DIA / NOITE - Movido para o centro da tela */
+        #day-night-hud {
+            position: absolute; top: 15px; left: 50%; transform: translateX(-50%);
+            display: flex; align-items: center; gap: 8px;
+            background: rgba(0,0,0,0.75); padding: 6px 14px; border-radius: 20px;
+            border: 1px solid #555; z-index: 100; color: white; font-weight: bold; font-size: 14px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+        }
+        #day-night-bar-bg {
+            width: 120px; height: 10px; background: #333; border-radius: 5px; overflow: hidden; border: 1px solid #444;
+        }
+        #day-night-bar-fill {
+            width: 100%; height: 100%; background: #ffca28; transition: width 0.3s linear, background-color 0.5s ease;
+        }
+
+        /* HUD BARRA DE VIDA - Movido para cima da barra de dia/noite no centro */
+        #health-hud {
+            position: absolute; top: 60px; left: 50%; transform: translateX(-50%);
+            display: flex; align-items: center; gap: 6px;
+            background: rgba(0,0,0,0.75); padding: 6px 10px; border-radius: 12px; border: 1px solid #444; z-index: 100;
+        }
+        #health-bar-bg {
+            width: 80px; height: 10px; background: #333; border-radius: 5px; overflow: hidden; border: 1px solid #555;
+        }
+        #health-bar-fill {
+            width: 100%; height: 100%; background: #e53935; transition: width 0.2s ease;
+        }
+        #health-txt { color: #fff; font-size: 11px; font-weight: bold; }
+
+        /* FLASH DE DANO */
+        #damage-overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none; z-index: 800;
+            box-shadow: inset 0 0 60px 25px rgba(255, 0, 0, 0.85);
+            opacity: 0; transition: opacity 0.15s ease-out;
+        }
+
+        #status-container {
+            position: absolute; top: 15px; right: 15px; display: flex; flex-direction: column; align-items: flex-end; z-index: 100; pointer-events: none;
+        }
+        #status-txt {
+            color: white; font-size: 12px; font-weight: bold;
+            background: rgba(0,0,0,0.6); padding: 5px 10px; border-radius: 6px; margin-bottom: 4px;
+        }
+        #player-log-txt {
+            color: #ffeb3b; font-size: 11px; background: rgba(0,0,0,0.7);
+            padding: 4px 8px; border-radius: 4px; max-width: 180px; text-align: right;
+            transition: opacity 0.5s ease; opacity: 0;
+        }
+
+        #minimap {
+            position: absolute; top: 15px; left: 15px; width: 120px; height: 120px;
+            background: rgba(0, 0, 0, 0.6); border: 2px solid #fff; border-radius: 50%;
+            z-index: 100; pointer-events: none;
+        }
+
+        /* BOTÃO MOCHILA NA COR CINZA */
+        #btn-mochila {
+            position: absolute; top: 145px; left: 15px;
+            background: rgba(255, 255, 255, 0.25); color: white; border: 2px solid rgba(255, 255, 255, 0.4);
+            width: 50px; height: 50px; border-radius: 50%; font-size: 24px;
+            z-index: 100; cursor: pointer; display: flex; align-items: center; justify-content: center;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+        }
+        
+        #mochila-backdrop {
+            display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            z-index: 1000; background: transparent;
+        }
+
+        #mochila-modal {
+            display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            background: rgba(18,18,18,0.95); border: 2px solid #555; padding: 15px;
+            border-radius: 12px; color: white; z-index: 1001; width: 90%; max-width: 320px; max-height: 75vh; overflow-y: auto;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.7);
+        }
+        .inv-item { font-size: 13px; font-weight: bold; margin-bottom: 5px; display: flex; justify-content: space-between; align-items: center; }
+        .drop-btn { background: #d32f2f; border: none; color: white; padding: 2px 6px; font-size: 10px; border-radius: 4px; cursor: pointer; }
+        
+        .craft-section { margin-top: 10px; border-top: 1px solid #444; padding-top: 8px; }
+        .craft-title { font-size: 11px; color: #ffeb3b; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px; }
+        
+        .tool-card {
+            display: flex; align-items: center; justify-content: space-between;
+            background: #262626; margin-bottom: 8px; padding: 8px; border-radius: 8px; border: 1px solid #444;
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.4);
+        }
+        .tool-preview-canvas { width: 55px; height: 55px; background: #1a1a1a; border-radius: 6px; border: 1px solid #333; }
+        .tool-info { flex: 1; margin-left: 10px; display: flex; flex-direction: column; }
+        .tool-name { font-size: 12px; font-weight: bold; color: #fff; margin-bottom: 4px; }
+        
+        .action-btn {
+            padding: 6px 10px; border: none; border-radius: 5px; font-weight: bold; cursor: pointer; color: white; font-size: 11px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+        }
+        .btn-craft { background: #388e3c; }
+        .btn-craft:active { background: #2e7d32; }
+        .btn-craft-disabled { background: #555 !important; color: #888 !important; cursor: not-allowed !important; box-shadow: none !important; }
+        .btn-equip { background: #0288d1; }
+        .btn-unequip { background: #d32f2f; }
+
+        #interaction-btn {
+            position: absolute; bottom: 200px; left: 50%; transform: translateX(-50%);
+            background: #ff9800; color: white; border: none; padding: 10px 20px;
+            font-size: 14px; font-weight: bold; border-radius: 25px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.4); z-index: 90; display: none; cursor: pointer;
+        }
+
+        #enter-house-btn {
+            position: absolute; bottom: 255px; left: 50%; transform: translateX(-50%);
+            background: #8d6e63; color: white; border: none; padding: 10px 20px;
+            font-size: 14px; font-weight: bold; border-radius: 25px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.4); z-index: 90; display: none; cursor: pointer;
+        }
+
+        #exit-house-btn {
+            position: absolute; top: 20px; left: 20px;
+            background: #d32f2f; color: white; border: none; padding: 10px 20px;
+            font-size: 14px; font-weight: bold; border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.4); z-index: 900; display: none; cursor: pointer;
+        }
+
+        #emoji-menu {
+            position: absolute; bottom: 260px; left: 50%; transform: translateX(-50%);
+            background: rgba(0,0,0,0.85); padding: 12px; border-radius: 12px; display: none; flex-direction: column; gap: 10px; z-index: 95; width: 280px;
+        }
+        .emoji-row { display: flex; justify-content: space-around; gap: 5px; }
+        .emoji-option { background: none; border: none; font-size: 32px; cursor: pointer; padding: 4px; }
+        
+        #chat-input-container {
+            display: flex; gap: 5px; width: 100%; margin-top: 5px;
+        }
+        #chat-input-msg {
+            flex: 1; padding: 8px; background: #222; border: 1px solid #555; color: white; border-radius: 4px; font-size: 14px; outline: none;
+        }
+        #chat-send-btn {
+            background: #4caf50; color: white; border: none; padding: 8px 14px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 14px;
+        }
+
+        /* Joystick posicionado na esquerda da tela */
+        #joystick-area {
+            position: absolute; bottom: 30px; left: 25px; width: 150px; height: 150px;
+            display: flex; align-items: center; justify-content: center; touch-action: none; z-index: 100; pointer-events: none;
+        }
+        #joystick-base {
+            width: 110px; height: 110px; background: rgba(255, 255, 255, 0.15);
+            border: 2px solid rgba(255, 255, 255, 0.3); border-radius: 50%;
+            position: relative; display: flex; align-items: center; justify-content: center; pointer-events: auto;
+        }
+        #joystick-stick {
+            width: 45px; height: 45px; background: rgba(255, 255, 255, 0.9);
+            border-radius: 50%; position: absolute; box-shadow: 0 2px 5px rgba(0,0,0,0.5); pointer-events: none;
+        }
+
+        /* BOTÃO DE ATAQUE NA COR CINZA IGUAL AO JOYSTICK */
+        #attack-btn {
+            position: absolute; bottom: 35px; right: 25px; width: 75px; height: 75px;
+            background: rgba(255, 255, 255, 0.15); border: 2px solid rgba(255, 255, 255, 0.3); color: white; border-radius: 50%;
+            font-size: 32px; z-index: 100; cursor: pointer; display: flex; align-items: center; justify-content: center;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.6); touch-action: manipulation;
+        }
+        #attack-btn:active { transform: scale(0.92); background: rgba(255, 255, 255, 0.3); }
+
+        .floating-text {
+            position: absolute; top: 40%; left: 50%; transform: translateX(-50%);
+            font-size: 16px; font-weight: bold; text-shadow: 1px 1px 0 #000, -1px -1px 0 #000;
+            pointer-events: none; animation: floatUp 1.5s ease-out forwards; z-index: 200;
+        }
+        @keyframes floatUp {
+            0% { opacity: 1; transform: translate(-50%, 0) scale(1); }
+            100% { opacity: 0; transform: translate(-50%, -40px) scale(1.1); }
+        }
+
+        #placement-hud {
+            position: absolute; top: 20px; left: 50%; transform: translateX(-50%);
+            background: rgba(0,0,0,0.8); color: #ffeb3b; padding: 10px 20px; border-radius: 8px;
+            font-size: 14px; font-weight: bold; z-index: 150; display: none; text-align: center;
+        }
     </style>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 </head>
 <body>
 
-    <div id="cidade">
-        <!-- Avatares aparecem aqui -->
+    <div id="damage-overlay"></div>
+
+    <div id="death-screen">
+        <h1>💀 VOCÊ MORREU</h1>
+        <p>Seus itens caíram no chão!</p>
+        <div id="respawn-options-container"></div>
     </div>
 
-    <!-- Botões direcionais para tocar na tela do celular -->
-    <div id="painel-controles">
-        <button onclick="mover(0, -15)">⬆️ Cima</button>
-        <div class="linha-botoes">
-            <button onclick="mover(-15, 0)">⬅️ Esq</button>
-            <button onclick="mover(15, 0)">Dir ➡️</button>
+    <div id="login-screen">
+        <div class="login-card">
+            <h2>🌍 Mundo 3D Online</h2>
+            <p id="conta-status">Digite usuário e senha para Entrar ou Criar:</p>
+            <input type="text" id="input-usuario" placeholder="Nome de usuário" maxlength="12" autocomplete="off">
+            <input type="password" id="input-senha" placeholder="Senha" maxlength="20" autocomplete="off">
+            <div class="gender-select">
+                <button type="button" class="gender-btn selected-m" id="btn-m" onclick="escolherGenero('M')">Masculino</button>
+                <button type="button" class="gender-btn" id="btn-f" onclick="escolherGenero('F')">Feminino</button>
+            </div>
+            <button class="enter-btn" onclick="autenticar()">Jogar / Criar Conta</button>
         </div>
-        <button onclick="mover(0, 15)">⬇️ Baixo</button>
     </div>
 
-    <!-- Chat -->
-    <div id="painel-chat">
-        <div id="mensagens"></div>
-        <input type="text" id="inputChat" placeholder="Digite sua mensagem e aperte Enter...">
+    <div id="game-wrapper">
+        <div id="game-container"></div>
+
+        <div id="day-night-hud">
+            <span id="day-night-icon">☀️</span>
+            <div id="day-night-bar-bg">
+                <div id="day-night-bar-fill"></div>
+            </div>
+        </div>
+
+        <div id="health-hud">
+            ❤️
+            <div id="health-bar-bg">
+                <div id="health-bar-fill"></div>
+            </div>
+            <span id="health-txt">100/100</span>
+        </div>
+
+        <canvas id="minimap" width="150" height="150"></canvas>
+        <div id="placement-hud">Toque onde deseja construir!</div>
+        
+        <button id="btn-mochila" onclick="toggleMochila()">🎒</button>
+        <button id="exit-house-btn" onclick="sairDaCasaInterior()">🏠 Sair da Casa</button>
+        
+        <div id="mochila-backdrop" onclick="toggleMochila()"></div>
+        <div id="mochila-modal">
+            <div class="inv-item"><span>🪨 Pedras: <span id="inv-pedra">0</span></span> <button class="drop-btn" onclick="droparItem('pedra', 1)">Dropar</button></div>
+            <div class="inv-item"><span>🪵 Madeira: <span id="inv-madeira">0</span></span> <button class="drop-btn" onclick="droparItem('madeira', 1)">Dropar</button></div>
+            <div class="inv-item"><span>⚙️ Ferro: <span id="inv-ferro">0</span></span> <button class="drop-btn" onclick="droparItem('ferro', 1)">Dropar</button></div>
+            <div class="inv-item"><span>💎 Diamante: <span id="inv-diamante">0</span></span> <button class="drop-btn" onclick="droparItem('diamante', 1)">Dropar</button></div>
+            <div class="inv-item"><span>📦 Mesa de Trabalho: <span id="inv-mesa">1</span></span> <button class="drop-btn" onclick="droparItem('mesa', 1)">Dropar</button></div>
+            <div class="inv-item"><span>🏠 Casas: <span id="inv-casa">0</span></span></div>
+            
+            <div class="craft-section">
+                <div class="craft-title">🔨 Oficina de Ferramentas e Armas (Encoste na Mesa de Trabalho)</div>
+
+                <div class="tool-card">
+                    <canvas class="tool-preview-canvas" id="preview-espadaMadeira" width="55" height="55"></canvas>
+                    <div class="tool-info">
+                        <span class="tool-name">Espada Madeira</span>
+                        <span style="font-size:10px; color:#aaa;">2x 🪵</span>
+                    </div>
+                    <div id="status-espadaMadeira"><button class="action-btn btn-craft" onclick="craftarFerramenta('espadaMadeira')">Criar</button></div>
+                </div>
+
+                <div class="tool-card">
+                    <canvas class="tool-preview-canvas" id="preview-espadaPedra" width="55" height="55"></canvas>
+                    <div class="tool-info">
+                        <span class="tool-name">Espada Pedra</span>
+                        <span style="font-size:10px; color:#aaa;">1x 🪵, 2x 🪨</span>
+                    </div>
+                    <div id="status-espadaPedra"><button class="action-btn btn-craft" onclick="craftarFerramenta('espadaPedra')">Criar</button></div>
+                </div>
+
+                <div class="tool-card">
+                    <canvas class="tool-preview-canvas" id="preview-espadaFerro" width="55" height="55"></canvas>
+                    <div class="tool-info">
+                        <span class="tool-name">Espada Ferro</span>
+                        <span style="font-size:10px; color:#aaa;">1x 🪵, 2x ⚙️</span>
+                    </div>
+                    <div id="status-espadaFerro"><button class="action-btn btn-craft" onclick="craftarFerramenta('espadaFerro')">Criar</button></div>
+                </div>
+
+                <div class="tool-card">
+                    <canvas class="tool-preview-canvas" id="preview-espadaDiamante" width="55" height="55"></canvas>
+                    <div class="tool-info">
+                        <span class="tool-name">Espada Diamante</span>
+                        <span style="font-size:10px; color:#aaa;">1x 🪵, 2x 💎</span>
+                    </div>
+                    <div id="status-espadaDiamante"><button class="action-btn btn-craft" onclick="craftarFerramenta('espadaDiamante')">Criar</button></div>
+                </div>
+                
+                <div class="tool-card">
+                    <canvas class="tool-preview-canvas" id="preview-machadoMadeira" width="55" height="55"></canvas>
+                    <div class="tool-info">
+                        <span class="tool-name">Machado Madeira</span>
+                        <span style="font-size:10px; color:#aaa;">3x 🪵</span>
+                    </div>
+                    <div id="status-machadoMadeira"><button class="action-btn btn-craft" onclick="craftarFerramenta('machadoMadeira')">Criar</button></div>
+                </div>
+
+                <div class="tool-card">
+                    <canvas class="tool-preview-canvas" id="preview-picaretaMadeira" width="55" height="55"></canvas>
+                    <div class="tool-info">
+                        <span class="tool-name">Picareta Madeira</span>
+                        <span style="font-size:10px; color:#aaa;">3x 🪵, 2x 🪨</span>
+                    </div>
+                    <div id="status-picaretaMadeira"><button class="action-btn btn-craft" onclick="craftarFerramenta('picaretaMadeira')">Criar</button></div>
+                </div>
+
+                <div class="tool-card">
+                    <canvas class="tool-preview-canvas" id="preview-machadoFerro" width="55" height="55"></canvas>
+                    <div class="tool-info">
+                        <span class="tool-name">Machado Ferro</span>
+                        <span style="font-size:10px; color:#aaa;">3x 🪵, 3x ⚙️</span>
+                    </div>
+                    <div id="status-machadoFerro"><button class="action-btn btn-craft" onclick="craftarFerramenta('machadoFerro')">Criar</button></div>
+                </div>
+
+                <div class="tool-card">
+                    <canvas class="tool-preview-canvas" id="preview-picaretaFerro" width="55" height="55"></canvas>
+                    <div class="tool-info">
+                        <span class="tool-name">Picareta Ferro</span>
+                        <span style="font-size:10px; color:#aaa;">2x 🪵, 4x ⚙️</span>
+                    </div>
+                    <div id="status-picaretaFerro"><button class="action-btn btn-craft" onclick="craftarFerramenta('picaretaFerro')">Criar</button></div>
+                </div>
+
+                <div class="tool-card">
+                    <canvas class="tool-preview-canvas" id="preview-machadoDiamante" width="55" height="55"></canvas>
+                    <div class="tool-info">
+                        <span class="tool-name">Machado Diamante</span>
+                        <span style="font-size:10px; color:#aaa;">3x 🪵, 2x 💎</span>
+                    </div>
+                    <div id="status-machadoDiamante"><button class="action-btn btn-craft" onclick="craftarFerramenta('machadoDiamante')">Criar</button></div>
+                </div>
+
+                <div class="tool-card">
+                    <canvas class="tool-preview-canvas" id="preview-picaretaDiamante" width="55" height="55"></canvas>
+                    <div class="tool-info">
+                        <span class="tool-name">Picareta Diamante</span>
+                        <span style="font-size:10px; color:#aaa;">3x 🪵, 3x 💎</span>
+                    </div>
+                    <div id="status-picaretaDiamante"><button class="action-btn btn-craft" onclick="craftarFerramenta('picaretaDiamante')">Criar</button></div>
+                </div>
+
+                <div class="tool-card">
+                    <canvas class="tool-preview-canvas" id="preview-casaSimples" width="55" height="55"></canvas>
+                    <div class="tool-info">
+                        <span class="tool-name">Casa Simples</span>
+                        <span style="font-size:10px; color:#aaa;">500x 🪵, 500x 🪨, 200x ⚙️</span>
+                    </div>
+                    <div id="status-casaSimples"><button class="action-btn btn-craft" onclick="craftarFerramenta('casaSimples')">Criar</button></div>
+                </div>
+            </div>
+        </div>
+        
+        <div id="status-container">
+            <div id="status-txt">Online: 1</div>
+            <div id="player-log-txt"></div>
+        </div>
+
+        <button id="interaction-btn" onclick="abrirMenuEmojis()">💬 Interagir</button>
+        <button id="enter-house-btn" onclick="entrarNaCasaInterior()">🏠 Entrar na casa</button>
+        
+        <div id="emoji-menu">
+            <div class="emoji-row">
+                <button class="emoji-option" onclick="enviarEmoji('👋')">👋</button>
+                <button class="emoji-option" onclick="enviarEmoji('❤️')">❤️</button>
+                <button class="emoji-option" onclick="enviarEmoji('😂')">😂</button>
+                <button class="emoji-option" onclick="enviarEmoji('🔥')">🔥</button>
+                <button class="emoji-option" onclick="enviarEmoji('❓')">❓</button>
+            </div>
+            <div id="chat-input-container">
+                <input type="text" id="chat-input-msg" placeholder="Digite sua mensagem..." maxlength="30" autocomplete="off">
+                <button id="chat-send-btn" onclick="enviarMensagemDigitada()">Enviar</button>
+            </div>
+        </div>
+
+        <div id="joystick-area">
+            <div id="joystick-base">
+                <div id="joystick-stick"></div>
+            </div>
+        </div>
+
+        <button id="attack-btn" onclick="atacar()">⚔️</button>
     </div>
 
-    <!-- Firebase SDK (Modular v10) -->
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getDatabase, ref, set, onValue, push, onDisconnect } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
-
+    <script>
         const firebaseConfig = {
             apiKey: "AIzaSyCTkq0uXy5kHg9N8rj9--Dooh8cuguYxPE",
             authDomain: "subjectrobot-49600.firebaseapp.com",
@@ -61,91 +440,1964 @@
             storageBucket: "subjectrobot-49600.appspot.com",
             appId: "1:731604558049:android:7f47b30b289445814017a0"
         };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
 
-        const app = initializeApp(firebaseConfig);
-        const db = getDatabase(app);
+        let meuId = null;
+        let meuNome = "Jogador";
+        let generoSelecionado = 'M';
+        let invPedras = 0;
+        let invMadeiras = 0;
+        let invFerros = 0;
+        let invDiamantes = 0;
+        let invCasas = 0;
+        let invMesas = 1;
+        let minhaCasaPos = null;
+        let casasGlobais = {};
+        let mesasTrabalhoGlobais = {};
+        let itensChaoGlobais = {};
+        let dentroDeCasa = false;
+        let ultimoMovimentoTempo = Date.now();
 
-        const meuId = "user_" + Math.floor(Math.random() * 10000);
-        const meuNome = "Rik_" + Math.floor(Math.random() * 100);
-        
-        let posX = 120;
-        let posY = 80;
+        let vidaMaxima = 100;
+        let vidaAtual = 100;
+        let ultimoDanoTempo = 0;
 
-        const meuRef = ref(db, 'cidade/jogadores/' + meuId);
-        
-        onDisconnect(meuRef).remove();
-        set(meuRef, { nome: meuNome, x: posX, y: posY, mensagem: "" });
+        let isAttacking = false;
+        let attackAnimTimer = 0;
 
-        // Função global dos botões
-        window.mover = function(dx, dy) {
-            posX += dx;
-            posY += dy;
-            // Limites básicos para não sumir da tela verde
-            if (posX < 0) posX = 0;
-            if (posY < 0) posY = 0;
-            if (posX > window.innerWidth - 45) posX = window.innerWidth - 45;
-            
-            set(meuRef, { nome: meuNome, x: posX, y: posY });
+        let tempoCicloTotal = 300;
+        let tempoDia = 150;
+        let ehNoite = false;
+        let serverTimeOffset = 0;
+
+        db.ref('.info/serverTimeOffset').once('value', snapshot => {
+            serverTimeOffset = snapshot.val() || 0;
+        });
+
+        let ferramentasPossuidas = {
+            espadaMadeira: false, espadaPedra: false, espadaFerro: false, espadaDiamante: false,
+            machadoMadeira: false, picaretaMadeira: false, machadoFerro: false, picaretaFerro: false,
+            machadoDiamante: false, picaretaDiamante: false
         };
+        let ferramentaEquipada = 'nenhuma';
+        let modoConstrucaoCasa = false;
+        let modoConstrucaoMesa = false;
 
-        // Ouve jogadores em tempo real
-        const jogadoresRef = ref(db, 'cidade/jogadores');
-        onValue(jogadoresRef, (snapshot) => {
-            const dados = snapshot.val();
-            const container = document.getElementById('cidade');
-            container.innerHTML = ''; 
+        function escolherGenero(g) {
+            generoSelecionado = g;
+            if(g === 'M') {
+                document.getElementById('btn-m').className = 'gender-btn selected-m';
+                document.getElementById('btn-f').className = 'gender-btn';
+            } else {
+                document.getElementById('btn-m').className = 'gender-btn';
+                document.getElementById('btn-f').className = 'gender-btn selected-f';
+            }
+        }
 
-            if (dados) {
-                for (let id in dados) {
-                    let p = dados[id];
-                    let div = document.createElement('div');
-                    div.className = 'avatar';
-                    div.style.left = p.x + 'px';
-                    div.style.top = p.y + 'px';
-                    div.innerText = p.nome.substring(0, 4);
+        function sanitizarNomeUsuario(nome) {
+            return nome.replace(/[.#$\/\[\]]/g, "_").trim();
+        }
 
-                    if (p.mensagem) {
-                        let balao = document.createElement('div');
-                        balao.className = 'balao';
-                        balao.innerText = p.mensagem;
-                        div.appendChild(balao);
+        function autenticar() {
+            const usuarioInput = document.getElementById('input-usuario').value.trim();
+            const senhaInput = document.getElementById('input-senha').value;
+            
+            if(!usuarioInput || !senhaInput) {
+                alert("Preencha o usuário e a senha!");
+                return;
+            }
+            
+            const userId = sanitizarNomeUsuario(usuarioInput);
+            const userRef = db.ref('mundo3d_v7/jogadores/' + userId);
+
+            userRef.once('value', snapshot => {
+                const val = snapshot.val();
+                
+                if(snapshot.exists()) {
+                    if(val.senha !== senhaInput) {
+                        alert("Senha incorreta para esse usuário!");
+                    } else {
+                        meuId = userId;
+                        meuNome = val.nome || usuarioInput;
+                        
+                        if(val.genero) {
+                            generoSelecionado = val.genero;
+                            escolherGenero(val.genero); 
+                        }
+                        
+                        if(val.pedras !== undefined) invPedras = val.pedras;
+                        if(val.madeiras !== undefined) invMadeiras = val.madeiras;
+                        if(val.ferros !== undefined) invFerros = val.ferros;
+                        if(val.diamantes !== undefined) invDiamantes = val.diamantes;
+                        if(val.casas !== undefined) invCasas = val.casas;
+                        if(val.mesas !== undefined) invMesas = val.mesas;
+                        if(val.casaPos !== undefined) minhaCasaPos = val.casaPos;
+                        if(val.ferramentas) ferramentasPossuidas = Object.assign(ferramentasPossuidas, val.ferramentas);
+                        if(val.ferramentaEquipada) ferramentaEquipada = val.ferramentaEquipada;
+
+                        iniciarJogoReal();
                     }
+                } else {
+                    meuId = userId;
+                    meuNome = usuarioInput;
+                    invPedras = 0; invMadeiras = 0; invFerros = 0; invDiamantes = 0; invCasas = 0; invMesas = 1; minhaCasaPos = null;
+                    ferramentasPossuidas = { 
+                        espadaMadeira: false, espadaPedra: false, espadaFerro: false, espadaDiamante: false,
+                        machadoMadeira: false, picaretaMadeira: false, machadoFerro: false, picaretaFerro: false, machadoDiamante: false, picaretaDiamante: false 
+                    };
+                    ferramentaEquipada = 'nenhuma';
 
-                    container.appendChild(div);
+                    userRef.set({
+                        nome: meuNome,
+                        senha: senhaInput,
+                        genero: generoSelecionado,
+                        x: 0,
+                        z: 0,
+                        rotY: 0,
+                        emoji: "",
+                        pedras: invPedras,
+                        madeiras: invMadeiras,
+                        ferros: invFerros,
+                        diamantes: invDiamantes,
+                        casas: invCasas,
+                        mesas: invMesas,
+                        casaPos: minhaCasaPos,
+                        ferramentas: ferramentasPossuidas,
+                        ferramentaEquipada: ferramentaEquipada
+                    }).then(() => {
+                        iniciarJogoReal();
+                    });
+                }
+            });
+        }
+
+        function iniciarJogoReal() {
+            document.getElementById('login-screen').style.display = 'none';
+            document.getElementById('game-wrapper').style.display = 'flex';
+
+            init3D();
+
+            meuRef = db.ref('mundo3d_v7/jogadores/' + meuId);
+            
+            meuRef.onDisconnect().update({
+                online: false,
+                emoji: ""
+            });
+            
+            meuRef.update({
+                nome: meuNome,
+                genero: generoSelecionado,
+                x: posX,
+                z: posZ,
+                rotY: 0,
+                online: true,
+                emoji: "",
+                pedras: invPedras,
+                madeiras: invMadeiras,
+                ferros: invFerros,
+                diamantes: invDiamantes,
+                casas: invCasas,
+                mesas: invMesas,
+                casaPos: minhaCasaPos,
+                ferramentas: ferramentasPossuidas,
+                ferramentaEquipada: ferramentaEquipada
+            });
+
+            ouvirZumbisOnline();
+            ouvirMesasTrabalho();
+            ouvirItensChao();
+            iniciarGameLoop();
+            ouvirJogadoresOnline();
+        }
+
+        function toggleMochila() {
+            const modal = document.getElementById('mochila-modal');
+            const backdrop = document.getElementById('mochila-backdrop');
+            const abrir = modal.style.display !== 'block';
+            modal.style.display = abrir ? 'block' : 'none';
+            backdrop.style.display = abrir ? 'block' : 'none';
+            if (abrir) {
+                atualizarUIInventario();
+                setTimeout(inicializarPreviews2D, 50);
+            }
+        }
+
+        function atualizarUIInventario() {
+            document.getElementById('inv-pedra').innerText = invPedras;
+            document.getElementById('inv-madeira').innerText = invMadeiras;
+            document.getElementById('inv-ferro').innerText = invFerros;
+            document.getElementById('inv-diamante').innerText = invDiamantes;
+            if(document.getElementById('inv-casa')) document.getElementById('inv-casa').innerText = invCasas;
+            if(document.getElementById('inv-mesa')) document.getElementById('inv-mesa').innerText = invMesas;
+
+            const listaFerramentasKeys = ['espadaMadeira', 'espadaPedra', 'espadaFerro', 'espadaDiamante', 'machadoMadeira', 'picaretaMadeira', 'machadoFerro', 'picaretaFerro', 'machadoDiamante', 'picaretaDiamante', 'casaSimples'];
+            listaFerramentasKeys.forEach(tKey => {
+                const container = document.getElementById('status-' + tKey);
+                if(!container) return;
+                
+                let temMaterial = false;
+                if(tKey === 'espadaMadeira') temMaterial = (invMadeiras >= 2);
+                else if(tKey === 'espadaPedra') temMaterial = (invMadeiras >= 1 && invPedras >= 2);
+                else if(tKey === 'espadaFerro') temMaterial = (invMadeiras >= 1 && invFerros >= 2);
+                else if(tKey === 'espadaDiamante') temMaterial = (invMadeiras >= 1 && invDiamantes >= 2);
+                else if(tKey === 'machadoMadeira') temMaterial = (invMadeiras >= 3);
+                else if(tKey === 'picaretaMadeira') temMaterial = (invMadeiras >= 3 && invPedras >= 2);
+                else if(tKey === 'machadoFerro') temMaterial = (invMadeiras >= 3 && invFerros >= 3);
+                else if(tKey === 'picaretaFerro') temMaterial = (invMadeiras >= 2 && invFerros >= 4);
+                else if(tKey === 'machadoDiamante') temMaterial = (invMadeiras >= 3 && invDiamantes >= 2);
+                else if(tKey === 'picaretaDiamante') temMaterial = (invMadeiras >= 3 && invDiamantes >= 3);
+                else if(tKey === 'casaSimples') temMaterial = (invMadeiras >= 500 && invPedras >= 500 && invFerros >= 200 && minhaCasaPos === null);
+
+                if(tKey === 'casaSimples') {
+                    if(minhaCasaPos !== null) {
+                        container.innerHTML = `<button class="action-btn btn-craft-disabled" disabled>Construída</button>`;
+                    } else if(temMaterial) {
+                        container.innerHTML = `<button class="action-btn btn-craft" onclick="craftarFerramenta('${tKey}')">Construir</button>`;
+                    } else {
+                        container.innerHTML = `<button class="action-btn btn-craft-disabled" disabled>Criar</button>`;
+                    }
+                    return;
+                }
+
+                let pertoDeMesa = false;
+                for(let mId in mesasTrabalhoGlobais) {
+                    let m = mesasTrabalhoGlobais[mId];
+                    if(Math.hypot(m.x - posX, m.z - posZ) < 3.5) {
+                        pertoDeMesa = true;
+                        break;
+                    }
+                }
+
+                const possui = ferramentasPossuidas[tKey];
+                const equipado = (ferramentaEquipada === tKey);
+
+                if (!possui) {
+                    if (temMaterial && pertoDeMesa) {
+                        container.innerHTML = `<button class="action-btn btn-craft" onclick="craftarFerramenta('${tKey}')">Criar</button>`;
+                    } else {
+                        container.innerHTML = `<button class="action-btn btn-craft-disabled" disabled>${!pertoDeMesa ? 'Perto Mesa' : 'Criar'}</button>`;
+                    }
+                } else {
+                    if (equipado) {
+                        container.innerHTML = `<button class="action-btn btn-unequip" onclick="equiparFerramenta('nenhuma')">Desequipar</button>`;
+                    } else {
+                        container.innerHTML = `<button class="action-btn btn-equip" onclick="equiparFerramenta('${tKey}')">Equipar</button>`;
+                    }
+                }
+            });
+        }
+
+        function droparItem(tipo, qtd) {
+            if(tipo === 'pedra' && invPedras >= qtd) invPedras -= qtd;
+            else if(tipo === 'madeira' && invMadeiras >= qtd) invMadeiras -= qtd;
+            else if(tipo === 'ferro' && invFerros >= qtd) invFerros -= qtd;
+            else if(tipo === 'diamante' && invDiamantes >= qtd) invDiamantes -= qtd;
+            else if(tipo === 'mesa' && invMesas >= qtd) {
+                invMesas -= qtd;
+                toggleMochila();
+                ativarModoConstrucaoMesa();
+                salvarDadosBanco();
+                return;
+            } else {
+                return;
+            }
+
+            const itemChaoRef = db.ref('mundo3d_v7/itensChao').push();
+            itemChaoRef.set({
+                tipo: tipo,
+                qtd: qtd,
+                x: posX + (Math.random() - 0.5) * 2,
+                z: posZ + (Math.random() - 0.5) * 2
+            });
+
+            atualizarUIInventario();
+            salvarDadosBanco();
+            showFloatingText("Item dropado no chão", "#ff9800");
+        }
+
+        function ativarModoConstrucaoMesa() {
+            modoConstrucaoMesa = true;
+            document.getElementById('placement-hud').style.display = 'block';
+            document.getElementById('placement-hud').innerText = "Toque onde deseja posicionar a Mesa de Trabalho!";
+        }
+
+        function inicializarPreviews2D() {
+            const itensPreview = ['espadaMadeira', 'espadaPedra', 'espadaFerro', 'espadaDiamante', 'machadoMadeira', 'picaretaMadeira', 'machadoFerro', 'picaretaFerro', 'machadoDiamante', 'picaretaDiamante', 'casaSimples'];
+            itensPreview.forEach(tipo => {
+                const canvasEl = document.getElementById('preview-' + tipo);
+                if (!canvasEl) return;
+                const ctx = canvasEl.getContext('2d');
+                ctx.clearRect(0, 0, 55, 55);
+
+                ctx.fillStyle = '#222';
+                ctx.fillRect(0, 0, 55, 55);
+                ctx.strokeStyle = '#444';
+                ctx.lineWidth = 1;
+                ctx.strokeRect(0, 0, 55, 55);
+
+                let corCabeca = '#8d6e63';
+                if (tipo.includes('Pedra')) corCabeca = '#a1887f';
+                if (tipo.includes('Ferro')) corCabeca = '#cfd8dc';
+                if (tipo.includes('Diamante')) corCabeca = '#18ffff';
+
+                if (tipo.includes('espada')) {
+                    ctx.save();
+                    ctx.translate(27.5, 27.5);
+                    ctx.rotate(Math.PI / 4);
+                    ctx.fillStyle = '#5d4037';
+                    ctx.fillRect(-2, 10, 4, 10);
+                    ctx.fillStyle = '#ffb74d';
+                    ctx.fillRect(-8, 7, 16, 3);
+                    ctx.fillStyle = corCabeca;
+                    ctx.beginPath();
+                    ctx.moveTo(-4, 7);
+                    ctx.lineTo(0, -20);
+                    ctx.lineTo(4, 7);
+                    ctx.fill();
+                    ctx.restore();
+                } else if (tipo.includes('machado')) {
+                    ctx.save();
+                    ctx.translate(27.5, 27.5);
+                    ctx.rotate(Math.PI / 4);
+                    ctx.fillStyle = '#795548'; 
+                    ctx.fillRect(-3, -18, 6, 36);
+                    ctx.fillStyle = corCabeca; 
+                    ctx.beginPath();
+                    ctx.moveTo(3, -15);
+                    ctx.lineTo(20, -20);
+                    ctx.lineTo(24, -3);
+                    ctx.lineTo(3, -6);
+                    ctx.fill();
+                    ctx.restore();
+                } else if (tipo.includes('picareta')) {
+                    ctx.save();
+                    ctx.translate(27.5, 27.5);
+                    ctx.rotate(Math.PI / 4);
+                    ctx.fillStyle = '#795548'; 
+                    ctx.fillRect(-3, -18, 6, 36);
+                    ctx.fillStyle = corCabeca; 
+                    ctx.beginPath();
+                    ctx.moveTo(-18, -12);
+                    ctx.quadraticCurveTo(0, -26, 18, -12);
+                    ctx.lineTo(14, -5);
+                    ctx.quadraticCurveTo(0, -17, -14, -5);
+                    ctx.fill();
+                    ctx.restore();
+                } else if (tipo === 'casaSimples') {
+                    ctx.fillStyle = '#d7ccc8'; 
+                    ctx.fillRect(12, 28, 30, 20);
+                    ctx.fillStyle = '#5d4037'; 
+                    ctx.fillRect(23, 38, 9, 10);
+                    ctx.fillStyle = '#81d4fa'; 
+                    ctx.fillRect(15, 32, 6, 6);
+                    ctx.fillStyle = '#81d4fa'; 
+                    ctx.fillRect(34, 32, 6, 6);
+                    ctx.fillStyle = '#b71c1c'; 
+                    ctx.beginPath();
+                    ctx.moveTo(6, 28);
+                    ctx.lineTo(27.5, 10);
+                    ctx.lineTo(49, 28);
+                    ctx.fill();
+                }
+            });
+        }
+
+        function craftarFerramenta(tipo) {
+            let pertoDeMesa = false;
+            for(let mId in mesasTrabalhoGlobais) {
+                let m = mesasTrabalhoGlobais[mId];
+                if(Math.hypot(m.x - posX, m.z - posZ) < 3.5) {
+                    pertoDeMesa = true;
+                    break;
                 }
             }
-        });
-
-        // Chat
-        const inputChat = document.getElementById('inputChat');
-        inputChat.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter' && inputChat.value.trim() !== "") {
-                let texto = inputChat.value;
-                set(meuRef, { nome: meuNome, x: posX, y: posY, mensagem: texto });
-                push(ref(db, 'cidade/chat'), { nome: meuNome, texto: texto });
-                inputChat.value = "";
-                
-                setTimeout(() => {
-                    set(meuRef, { nome: meuNome, x: posX, y: posY, mensagem: "" });
-                }, 4000);
+            if(!pertoDeMesa) {
+                showFloatingText("Chegue perto de uma Mesa de Trabalho!", "#ff5252");
+                return;
             }
-        });
 
-        const chatRef = ref(db, 'cidade/chat');
-        onValue(chatRef, (snapshot) => {
-            const mensagensDiv = document.getElementById('mensagens');
-            mensagensDiv.innerHTML = '';
-            const msgs = snapshot.val();
-            if (msgs) {
-                let lista = Object.values(msgs).slice(-15); 
-                lista.forEach(m => {
-                    let p = document.createElement('div');
-                    p.innerHTML = `<b>${m.nome}:</b> ${m.texto}`;
-                    mensagensDiv.appendChild(p);
+            let sucesso = false;
+            if (tipo === 'espadaMadeira') {
+                if(ferramentasPossuidas[tipo]) return;
+                if(invMadeiras >= 2) { invMadeiras -= 2; sucesso = true; }
+            } else if (tipo === 'espadaPedra') {
+                if(ferramentasPossuidas[tipo]) return;
+                if(invMadeiras >= 1 && invPedras >= 2) { invMadeiras -= 1; invPedras -= 2; sucesso = true; }
+            } else if (tipo === 'espadaFerro') {
+                if(ferramentasPossuidas[tipo]) return;
+                if(invMadeiras >= 1 && invFerros >= 2) { invMadeiras -= 1; invFerros -= 2; sucesso = true; }
+            } else if (tipo === 'espadaDiamante') {
+                if(ferramentasPossuidas[tipo]) return;
+                if(invMadeiras >= 1 && invDiamantes >= 2) { invMadeiras -= 1; invDiamantes -= 2; sucesso = true; }
+            } else if (tipo === 'machadoMadeira') {
+                if(ferramentasPossuidas[tipo]) return;
+                if(invMadeiras >= 3) { invMadeiras -= 3; sucesso = true; }
+            } else if (tipo === 'picaretaMadeira') {
+                if(ferramentasPossuidas[tipo]) return;
+                if(invMadeiras >= 3 && invPedras >= 2) { invMadeiras -= 3; invPedras -= 2; sucesso = true; }
+            } else if (tipo === 'machadoFerro') {
+                if(ferramentasPossuidas[tipo]) return;
+                if(invMadeiras >= 3 && invFerros >= 3) { invMadeiras -= 3; invFerros -= 3; sucesso = true; }
+            } else if (tipo === 'picaretaFerro') {
+                if(ferramentasPossuidas[tipo]) return;
+                if(invMadeiras >= 2 && invFerros >= 4) { invMadeiras -= 2; invFerros -= 4; sucesso = true; }
+            } else if (tipo === 'machadoDiamante') {
+                if(ferramentasPossuidas[tipo]) return;
+                if(invMadeiras >= 3 && invDiamantes >= 2) { invMadeiras -= 3; invDiamantes -= 2; sucesso = true; }
+            } else if (tipo === 'picaretaDiamante') {
+                if(ferramentasPossuidas[tipo]) return;
+                if(invMadeiras >= 3 && invDiamantes >= 3) { invMadeiras -= 3; invDiamantes -= 3; sucesso = true; }
+            } else if (tipo === 'casaSimples') {
+                if(minhaCasaPos !== null) return;
+                if(invMadeiras >= 500 && invPedras >= 500 && invFerros >= 200) {
+                    invMadeiras -= 500; invPedras -= 500; invFerros -= 200;
+                    invCasas++;
+                    sucesso = true;
+                    toggleMochila();
+                    ativarModoConstrucaoCasa();
+                    return;
+                }
+            }
+
+            if (sucesso) {
+                if(tipo !== 'casaSimples') {
+                    ferramentasPossuidas[tipo] = true;
+                    equiparFerramenta(tipo);
+                }
+                showFloatingText("Item Fabricado!", "#4caf50");
+            }
+
+            atualizarUIInventario();
+            salvarDadosBanco();
+        }
+
+        function ativarModoConstrucaoCasa() {
+            modoConstrucaoCasa = true;
+            document.getElementById('placement-hud').style.display = 'block';
+            document.getElementById('placement-hud').innerText = "Toque onde deseja construir sua casa!";
+        }
+
+        function equiparFerramenta(tipo) {
+            ferramentaEquipada = tipo;
+            atualizarUIInventario();
+            atualizarFerramentaNaMao(meuAvatar3D, ferramentaEquipada);
+            salvarDadosBanco();
+            
+            if(meuRef) {
+                meuRef.update({ ferramentaEquipada: ferramentaEquipada });
+            }
+        }
+
+        function salvarDadosBanco() {
+            if(meuRef) {
+                meuRef.update({
+                    pedras: invPedras,
+                    madeiras: invMadeiras,
+                    ferros: invFerros,
+                    diamantes: invDiamantes,
+                    casas: invCasas,
+                    mesas: invMesas,
+                    casaPos: minhaCasaPos,
+                    ferramentas: ferramentasPossuidas,
+                    ferramentaEquipada: ferramentaEquipada
                 });
-                mensagensDiv.scrollTop = mensagensDiv.scrollHeight;
             }
-        });
+        }
+
+        let meuRef = null;
+        let posX = 0, posZ = 0;
+        let moving = false, angle = 0, distance = 0;
+        const maxDist = 35;
+        
+        let isMining = false;
+        let alvoMining = null;
+        let timerMining = 0;
+        let poolParticulas = [];
+
+        let scene, camera, renderer;
+        let meuAvatar3D = null;
+        let setaCasa3D = null;
+        let outrosJogadoresMeshes = {};
+        let jogadoresAtuais = {};
+        let zumbisMeshes = {};
+        let zumbisDados = {};
+        let casasMeshes = {};
+        let mesasMeshes = {};
+        let itensChaoMeshes = {};
+        let interiorCasaGroup = null;
+        let luzAmbiente = null;
+        let luzDirecional = null;
+        
+        let listaPedras = [];
+        let listaArvores = [];
+        let listaFerros = [];
+        let listaDiamantes = [];
+        let listaRios = [];
+        let particulasAtivas = [];
+        let listaPegadas = [];
+        
+        let animTimer = 0;
+        let logTimeout = null;
+        let lastTime = performance.now();
+
+        function mulberry32(a) {
+            return function() {
+              var t = a += 0x6D2B79F5;
+              t = Math.imul(t ^ t >>> 15, t | 1);
+              t ^= t + Math.imul(t ^ t >>> 7, t | 61);
+              return ((t ^ t >>> 14) >>> 0) / 4294967296;
+            }
+        }
+        const randomMap = mulberry32(8888); 
+
+        function mostrarLogJogador(msg) {
+            const logEl = document.getElementById('player-log-txt');
+            logEl.innerText = msg;
+            logEl.style.opacity = '1';
+            if(logTimeout) clearTimeout(logTimeout);
+            logTimeout = setTimeout(() => { logEl.style.opacity = '0'; }, 3500);
+        }
+
+        function showFloatingText(msg, color) {
+            const el = document.createElement('div');
+            el.className = 'floating-text';
+            el.style.color = color;
+            el.innerText = msg;
+            document.body.appendChild(el);
+            setTimeout(() => el.remove(), 1500);
+        }
+
+        function init3D() {
+            const container = document.getElementById('game-container');
+            
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x222222); 
+            scene.fog = new THREE.Fog(0x222222, 50, 150);
+
+            camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 1000);
+
+            renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
+            renderer.setSize(container.clientWidth, container.clientHeight);
+            renderer.shadowMap.enabled = false;
+            container.appendChild(renderer.domElement);
+
+            luzAmbiente = new THREE.AmbientLight(0xffffff, 0.7);
+            scene.add(luzAmbiente);
+
+            luzDirecional = new THREE.DirectionalLight(0xffffff, 0.5);
+            luzDirecional.position.set(40, 80, 40);
+            scene.add(luzDirecional);
+
+            const floorGeo = new THREE.PlaneGeometry(400, 400);
+            const floorMat = new THREE.MeshBasicMaterial({ color: 0x3a3a3a });
+            const floor = new THREE.Mesh(floorGeo, floorMat);
+            floor.rotation.x = -Math.PI / 2;
+            scene.add(floor);
+
+            espalharRios(5);
+            espalharPedras(120);
+            espalharArvores(100);
+            espalharFerro(50);
+            espalharDiamante(5);
+
+            meuAvatar3D = criarModeloHumano3D(generoSelecionado, meuNome, ferramentaEquipada);
+            scene.add(meuAvatar3D);
+
+            criarSetaCasa3D();
+            criarInteriorCasa();
+
+            renderer.domElement.addEventListener('click', (e) => {
+                if (!modoConstrucaoCasa && !modoConstrucaoMesa) return;
+                
+                const raycaster = new THREE.Raycaster();
+                const mouse = new THREE.Vector2();
+                mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+                mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+                
+                raycaster.setFromCamera(mouse, camera);
+                const intersects = raycaster.intersectObjects(scene.children);
+                
+                for(let hit of intersects) {
+                    if(hit.object.geometry instanceof THREE.PlaneGeometry) {
+                        if(modoConstrucaoCasa) {
+                            minhaCasaPos = { x: hit.point.x, z: hit.point.z };
+                            modoConstrucaoCasa = false;
+                            document.getElementById('placement-hud').style.display = 'none';
+                            showFloatingText("Casa construída com sucesso!", "#4caf50");
+                            criarMeshCasa(meuId, minhaCasaPos);
+                            salvarDadosBanco();
+                        } else if(modoConstrucaoMesa) {
+                            modoConstrucaoMesa = false;
+                            document.getElementById('placement-hud').style.display = 'none';
+                            showFloatingText("Mesa posicionada!", "#4caf50");
+                            db.ref('mundo3d_v7/mesasTrabalho').push({
+                                x: hit.point.x,
+                                z: hit.point.z,
+                                dono: meuId
+                            });
+                        }
+                        break;
+                    }
+                }
+            });
+
+            window.addEventListener('resize', () => {
+                camera.aspect = container.clientWidth / container.clientHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(container.clientWidth, container.clientHeight);
+            });
+        }
+
+        function criarSetaCasa3D() {
+            const arrowGeo = new THREE.ConeGeometry(0.35, 1.0, 4);
+            const arrowMat = new THREE.MeshBasicMaterial({ color: 0xffeb3b });
+            setaCasa3D = new THREE.Mesh(arrowGeo, arrowMat);
+            setaCasa3D.rotation.x = Math.PI / 2;
+            setaCasa3D.visible = false;
+            scene.add(setaCasa3D);
+        }
+
+        function espalharRios(quantidade) {
+            const rioGeo = new THREE.PlaneGeometry(12, 400);
+            const rioMat = new THREE.MeshBasicMaterial({ color: 0x1e88e5 });
+            for(let i = 0; i < quantidade; i++) {
+                const rio = new THREE.Mesh(rioGeo, rioMat);
+                rio.rotation.x = -Math.PI / 2;
+                let px = (randomMap() - 0.5) * 300;
+                rio.position.set(px, 0.05, 0);
+                scene.add(rio);
+                listaRios.push({ x: px, largura: 12 });
+            }
+        }
+
+        function espalharPedras(quantidade) {
+            const rockGeo = new THREE.DodecahedronGeometry(1, 0); 
+            const rockMat = new THREE.MeshBasicMaterial({ color: 0x888888 }); 
+            
+            for(let i = 0; i < quantidade; i++) {
+                const rock = new THREE.Mesh(rockGeo, rockMat);
+                const scale = randomMap() * 3.5 + 0.5;
+                rock.scale.set(scale, scale * (randomMap() * 0.5 + 0.6), scale);
+                
+                const px = (randomMap() - 0.5) * 350;
+                const pz = (randomMap() - 0.5) * 350;
+                
+                rock.position.set(px, scale / 2.5, pz);
+                rock.rotation.set(randomMap() * Math.PI, randomMap() * Math.PI, randomMap() * Math.PI);
+                
+                scene.add(rock);
+                listaPedras.push({ x: px, z: pz, raio: scale * 0.8, type: 'pedra', obj: rock });
+            }
+        }
+
+        function espalharFerro(quantidade) {
+            const ironGeo = new THREE.BoxGeometry(1.2, 1.2, 1.2);
+            const ironMat = new THREE.MeshBasicMaterial({ color: 0x78909c });
+
+            for(let i = 0; i < quantidade; i++) {
+                const iron = new THREE.Mesh(ironGeo, ironMat);
+                const px = (randomMap() - 0.5) * 350;
+                const pz = (randomMap() - 0.5) * 350;
+                iron.position.set(px, 0.6, pz);
+                scene.add(iron);
+                listaFerros.push({ x: px, z: pz, raio: 1.0, type: 'ferro', obj: iron });
+            }
+        }
+
+        function espalharDiamante(quantidade) {
+            const diamGeo = new THREE.OctahedronGeometry(0.8, 0);
+            const diamMat = new THREE.MeshBasicMaterial({ color: 0x00bcd4 });
+
+            for(let i = 0; i < quantidade; i++) {
+                const diam = new THREE.Mesh(diamGeo, diamMat);
+                let px = (randomMap() - 0.5) * 350;
+                let pz = (randomMap() - 0.5) * 350;
+                if(Math.abs(px) < 50) px += (px > 0 ? 50 : -50);
+                if(Math.abs(pz) < 50) pz += (pz > 0 ? 50 : -50);
+
+                diam.position.set(px, 0.4, pz);
+                scene.add(diam);
+                listaDiamantes.push({ x: px, z: pz, raio: 0.8, type: 'diamante', obj: diam });
+            }
+        }
+
+        function espalharArvores(quantidade) {
+            const trunkGeo = new THREE.CylinderGeometry(0.5, 0.7, 5.5, 5);
+            const trunkMat = new THREE.MeshBasicMaterial({ color: 0x5D4037 });
+            const leavesGeo = new THREE.ConeGeometry(3.0, 6, 6);
+            const leavesMat = new THREE.MeshBasicMaterial({ color: 0x2E7D32 });
+
+            for(let i = 0; i < quantidade; i++) {
+                const trunk = new THREE.Mesh(trunkGeo, trunkMat);
+                trunk.position.y = 2.75;
+
+                const leaves = new THREE.Mesh(leavesGeo, leavesMat);
+                leaves.position.y = 6.5;
+
+                const tree = new THREE.Group();
+                tree.add(trunk);
+                tree.add(leaves);
+
+                const px = (randomMap() - 0.5) * 350;
+                const pz = (randomMap() - 0.5) * 350;
+                tree.position.set(px, 0, pz);
+                
+                const scale = randomMap() * 0.4 + 0.9;
+                tree.scale.set(scale, scale, scale);
+                tree.rotation.y = randomMap() * Math.PI;
+
+                scene.add(tree);
+                listaArvores.push({ x: px, z: pz, raio: 1.2 * scale, type: 'arvore', obj: tree });
+            }
+        }
+
+        function criarNameTag(nome) {
+            const canvas = document.createElement('canvas');
+            canvas.width = 512; canvas.height = 128;
+            const ctx = canvas.getContext('2d');
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+            ctx.roundRect(20, 20, 472, 88, 15);
+            ctx.fill();
+            ctx.fillStyle = '#ffffff';
+            ctx.font = 'bold 50px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(nome, 256, 64);
+            const texture = new THREE.CanvasTexture(canvas);
+            const mat = new THREE.SpriteMaterial({ map: texture, transparent: true, depthTest: false });
+            const sprite = new THREE.Sprite(mat);
+            sprite.scale.set(7, 1.75, 1); 
+            return sprite;
+        }
+
+        function desenharBalao(ctx, texto) {
+            ctx.clearRect(0, 0, 512, 256);
+            if (!texto || texto === "") return;
+            
+            ctx.font = "bold 42px sans-serif";
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+            
+            const metrics = ctx.measureText(texto);
+            const larguraTexto = Math.max(metrics.width + 40, 90);
+            const alturaTexto = 75;
+            const xRet = 256 - larguraTexto / 2;
+            const yRet = 45;
+            
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.85)';
+            ctx.beginPath();
+            if(ctx.roundRect) {
+                ctx.roundRect(xRet, yRet, larguraTexto, alturaTexto, 16);
+            } else {
+                ctx.rect(xRet, yRet, larguraTexto, alturaTexto);
+            }
+            ctx.fill();
+
+            ctx.beginPath();
+            ctx.moveTo(256 - 10, yRet + alturaTexto);
+            ctx.lineTo(256, yRet + alturaTexto + 16);
+            ctx.lineTo(256 + 10, yRet + alturaTexto);
+            ctx.fill();
+
+            ctx.fillStyle = '#ffffff';
+            ctx.fillText(texto, 256, yRet + alturaTexto / 2);
+        }
+
+        function criarMeshFerramenta(tipo) {
+            const grupoTool = new THREE.Group();
+            if (tipo === 'nenhuma') return grupoTool;
+
+            let ehEspada = tipo.includes('espada');
+            let ehMachado = tipo.includes('machado');
+            let corCabo = 0x5d4037;
+            let corCabeca = 0x8d6e63;
+
+            if (tipo.includes('Pedra')) corCabeca = 0xa1887f;
+            if (tipo.includes('Ferro')) corCabeca = 0xb0bec5;
+            if (tipo.includes('Diamante')) corCabeca = 0x00bcd4;
+
+            if (ehEspada) {
+                const handleGeo = new THREE.CylinderGeometry(0.04, 0.04, 0.6, 4);
+                const handleMat = new THREE.MeshBasicMaterial({ color: corCabo });
+                const handle = new THREE.Mesh(handleGeo, handleMat);
+                handle.position.y = 0.3;
+                grupoTool.add(handle);
+
+                const guardGeo = new THREE.BoxGeometry(0.4, 0.08, 0.08);
+                const guardMat = new THREE.MeshBasicMaterial({ color: 0xffb74d });
+                const guard = new THREE.Mesh(guardGeo, guardMat);
+                guard.position.y = 0.6;
+                grupoTool.add(guard);
+
+                const bladeGeo = new THREE.BoxGeometry(0.12, 1.1, 0.04);
+                const bladeMat = new THREE.MeshBasicMaterial({ color: corCabeca });
+                const blade = new THREE.Mesh(bladeGeo, bladeMat);
+                blade.position.y = 1.15;
+                grupoTool.add(blade);
+            } else {
+                const handleGeo = new THREE.CylinderGeometry(0.05, 0.05, 1.2, 4);
+                const handleMat = new THREE.MeshBasicMaterial({ color: corCabo });
+                const handle = new THREE.Mesh(handleGeo, handleMat);
+                handle.position.y = 0.6;
+                grupoTool.add(handle);
+
+                if (ehMachado) {
+                    const headGeo = new THREE.BoxGeometry(0.18, 0.35, 0.35);
+                    const headMat = new THREE.MeshBasicMaterial({ color: corCabeca });
+                    const head = new THREE.Mesh(headGeo, headMat);
+                    head.position.set(0.1, 1.0, 0);
+                    grupoTool.add(head);
+                } else {
+                    const headGeo = new THREE.BoxGeometry(0.8, 0.18, 0.18);
+                    const headMat = new THREE.MeshBasicMaterial({ color: corCabeca });
+                    const head = new THREE.Mesh(headGeo, headMat);
+                    head.position.set(0, 1.1, 0);
+                    grupoTool.add(head);
+                }
+            }
+
+            grupoTool.rotation.x = Math.PI / 2;
+            grupoTool.position.set(0, -0.8, 0.5);
+            return grupoTool;
+        }
+
+        function criarModeloZumbi3D() {
+            const grupo = new THREE.Group();
+            const skinMat = new THREE.MeshBasicMaterial({ color: 0x2e7d32 }); 
+            const shirtMat = new THREE.MeshBasicMaterial({ color: 0x1565c0 }); 
+            const pantsMat = new THREE.MeshBasicMaterial({ color: 0x37474f }); 
+
+            const body = new THREE.Mesh(new THREE.BoxGeometry(1.2, 1.6, 0.6), shirtMat);
+            body.position.y = 1.6;
+            grupo.add(body);
+
+            const head = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.9, 0.9), skinMat);
+            head.position.y = 2.6;
+            
+            const eyeMat = new THREE.MeshBasicMaterial({ color: 0x800000 });
+            const eyeL = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.15, 0.1), eyeMat);
+            eyeL.position.set(-0.2, 0.1, 0.46);
+            head.add(eyeL);
+            const eyeR = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.15, 0.1), eyeMat);
+            eyeR.position.set(0.2, 0.1, 0.46);
+            head.add(eyeR);
+            grupo.add(head);
+
+            const armGeo = new THREE.BoxGeometry(0.35, 1.3, 0.4);
+            const armL = new THREE.Mesh(armGeo, skinMat);
+            armL.position.set(-0.85, 2.0, 0.4);
+            armL.rotation.x = -Math.PI / 2;
+            grupo.add(armL);
+
+            const armR = new THREE.Mesh(armGeo, skinMat);
+            armR.position.set(0.85, 2.0, 0.4);
+            armR.rotation.x = -Math.PI / 2;
+            grupo.add(armR);
+
+            const legGeo = new THREE.BoxGeometry(0.4, 1.2, 0.5);
+            const legL = new THREE.Mesh(legGeo, pantsMat);
+            legL.position.set(-0.35, 0.6, 0);
+            grupo.add(legL);
+
+            const legR = new THREE.Mesh(legGeo, pantsMat);
+            legR.position.set(0.35, 0.6, 0);
+            grupo.add(legR);
+
+            const tag = criarNameTag("Zumbi");
+            tag.position.set(0, 3.5, 0);
+            grupo.add(tag);
+
+            return grupo;
+        }
+
+        function criarMeshMesaTrabalho() {
+            const mesaGroup = new THREE.Group();
+            const topGeo = new THREE.BoxGeometry(1.5, 0.2, 1.5);
+            const topMat = new THREE.MeshBasicMaterial({ color: 0x795548 });
+            const top = new THREE.Mesh(topGeo, topMat);
+            top.position.y = 1.0;
+            mesaGroup.add(top);
+
+            const legGeo = new THREE.BoxGeometry(0.2, 1.0, 0.2);
+            const legMat = new THREE.MeshBasicMaterial({ color: 0x5d4037 });
+            
+            for(let dx of [-0.6, 0.6]) {
+                for(let dz of [-0.6, 0.6]) {
+                    const leg = new THREE.Mesh(legGeo, legMat);
+                    leg.position.set(dx, 0.5, dz);
+                    mesaGroup.add(leg);
+                }
+            }
+            return mesaGroup;
+        }
+
+        function criarMeshItemChao(tipo) {
+            let geom = new THREE.BoxGeometry(0.4, 0.4, 0.4);
+            let cor = 0xffffff;
+            if(tipo === 'pedra') cor = 0x888888;
+            else if(tipo === 'madeira') cor = 0x8d6e63;
+            else if(tipo === 'ferro') cor = 0xb0bec5;
+            else if(tipo === 'diamante') cor = 0x00bcd4;
+            else if(tipo === 'mesa') cor = 0x795548;
+
+            const mat = new THREE.MeshBasicMaterial({ color: cor });
+            return new THREE.Mesh(geom, mat);
+        }
+
+        function ouvirMesasTrabalho() {
+            db.ref('mundo3d_v7/mesasTrabalho').on('value', snapshot => {
+                const dados = snapshot.val() || {};
+                mesasTrabalhoGlobais = dados;
+                
+                for(let id in mesasMeshes) {
+                    if(!dados[id]) {
+                        scene.remove(mesasMeshes[id]);
+                        delete mesasMeshes[id];
+                    }
+                }
+
+                for(let id in dados) {
+                    let m = dados[id];
+                    if(!mesasMeshes[id]) {
+                        let mesh = criarMeshMesaTrabalho();
+                        mesh.position.set(m.x, 0, m.z);
+                        scene.add(mesh);
+                        mesasMeshes[id] = mesh;
+                    }
+                }
+            });
+        }
+
+        function ouvirItensChao() {
+            db.ref('mundo3d_v7/itensChao').on('value', snapshot => {
+                const dados = snapshot.val() || {};
+                
+                for(let id in itensChaoMeshes) {
+                    if(!dados[id]) {
+                        scene.remove(itensChaoMeshes[id]);
+                        delete itensChaoMeshes[id];
+                    }
+                }
+
+                for(let id in dados) {
+                    let it = dados[id];
+                    if(!itensChaoMeshes[id]) {
+                        let mesh = criarMeshItemChao(it.tipo);
+                        mesh.position.set(it.x, 0.3, it.z);
+                        scene.add(mesh);
+                        itensChaoMeshes[id] = mesh;
+                    }
+                }
+            });
+        }
+
+        function criarMeshCasa(idDono, pos) {
+            if(casasMeshes[idDono]) {
+                scene.remove(casasMeshes[idDono]);
+            }
+            const casaGroup = new THREE.Group();
+            
+            const lajeGeo = new THREE.BoxGeometry(9, 0.4, 9);
+            const lajeMat = new THREE.MeshBasicMaterial({ color: 0x666666 });
+            const laje = new THREE.Mesh(lajeGeo, lajeMat);
+            laje.position.y = 0.2;
+            casaGroup.add(laje);
+
+            const baseGeo = new THREE.BoxGeometry(7, 6.5, 7);
+            const baseMat = new THREE.MeshBasicMaterial({ color: 0xd7ccc8 });
+            const base = new THREE.Mesh(baseGeo, baseMat);
+            base.position.y = 3.45;
+            casaGroup.add(base);
+
+            const doorGeo = new THREE.BoxGeometry(1.6, 3.0, 0.2);
+            const doorMat = new THREE.MeshBasicMaterial({ color: 0x5d4037 });
+            const door = new THREE.Mesh(doorGeo, doorMat);
+            door.position.set(0, 1.7, 3.55);
+            casaGroup.add(door);
+
+            const windowGeo = new THREE.BoxGeometry(1.5, 1.5, 0.2);
+            const windowMat = new THREE.MeshBasicMaterial({ color: 0x81d4fa });
+            
+            const windowL = new THREE.Mesh(windowGeo, windowMat);
+            windowL.position.set(-2.0, 4.0, 3.55);
+            casaGroup.add(windowL);
+
+            const windowR = new THREE.Mesh(windowGeo, windowMat);
+            windowR.position.set(2.0, 4.0, 3.55);
+            casaGroup.add(windowR);
+
+            const roofGeo = new THREE.ConeGeometry(5.5, 3.5, 4);
+            const roofMat = new THREE.MeshBasicMaterial({ color: 0xb71c1c });
+            const roof = new THREE.Mesh(roofGeo, roofMat);
+            roof.position.y = 8.45;
+            roof.rotation.y = Math.PI / 4;
+            casaGroup.add(roof);
+
+            casaGroup.position.set(pos.x, 0, pos.z);
+            scene.add(casaGroup);
+            casasMeshes[idDono] = casaGroup;
+        }
+
+        function criarInteriorCasa() {
+            interiorCasaGroup = new THREE.Group();
+            
+            const floorGeo = new THREE.PlaneGeometry(16, 16);
+            const floorMat = new THREE.MeshBasicMaterial({ color: 0x5d4037 });
+            const floor = new THREE.Mesh(floorGeo, floorMat);
+            floor.rotation.x = -Math.PI / 2;
+            interiorCasaGroup.add(floor);
+
+            const wallMat = new THREE.MeshBasicMaterial({ color: 0xd7ccc8 });
+            const wallGeo1 = new THREE.BoxGeometry(16, 6, 0.5);
+            
+            const wall1 = new THREE.Mesh(wallGeo1, wallMat);
+            wall1.position.set(0, 3, -8);
+            interiorCasaGroup.add(wall1);
+
+            const wall2 = new THREE.Mesh(wallGeo1, wallMat);
+            wall2.position.set(0, 3, 8);
+            interiorCasaGroup.add(wall2);
+
+            const wallGeo2 = new THREE.BoxGeometry(0.5, 6, 16);
+            const wall3 = new THREE.Mesh(wallGeo2, wallMat);
+            wall3.position.set(-8, 3, 0);
+            interiorCasaGroup.add(wall3);
+
+            const wall4 = new THREE.Mesh(wallGeo2, wallMat);
+            wall4.position.set(8, 3, 0);
+            interiorCasaGroup.add(wall4);
+
+            interiorCasaGroup.position.set(0, -1000, 0); 
+            scene.add(interiorCasaGroup);
+        }
+
+        function entrarNaCasaInterior() {
+            if (!minhaCasaPos) return;
+            dentroDeCasa = true;
+            posX = 0;
+            posZ = 5;
+            if(interiorCasaGroup) interiorCasaGroup.position.set(minhaCasaPos.x, 0, minhaCasaPos.z);
+            document.getElementById('enter-house-btn').style.display = 'none';
+            document.getElementById('exit-house-btn').style.display = 'block';
+            showFloatingText("Entrou na sua casa!", "#8d6e63");
+        }
+
+        function sairDaCasaInterior() {
+            dentroDeCasa = false;
+            if(minhaCasaPos) {
+                posX = minhaCasaPos.x + 3;
+                posZ = minhaCasaPos.z;
+            }
+            if(interiorCasaGroup) interiorCasaGroup.position.set(0, -1000, 0);
+            document.getElementById('exit-house-btn').style.display = 'none';
+            showFloatingText("Saiu para o mundo!", "#ff9800");
+        }
+
+        function atualizarFerramentaNaMao(avatarGrupo, tipoFerramenta) {
+            if (!avatarGrupo || !avatarGrupo.userData.rightArm) return;
+            const armR = avatarGrupo.userData.rightArm;
+            
+            let anterior = armR.getObjectByName('ferramentaMao');
+            if (anterior) armR.remove(anterior);
+
+            if (tipoFerramenta && tipoFerramenta !== 'nenhuma') {
+                let novaTool = criarMeshFerramenta(tipoFerramenta);
+                novaTool.name = 'ferramentaMao';
+                armR.add(novaTool);
+            }
+        }
+
+        function criarModeloHumano3D(genero, nomeJogador, toolEquipada) {
+            const grupo = new THREE.Group();
+            const corRoupa = genero === 'F' ? 0xe91e63 : 0x1565c0;
+
+            const bodyMat = new THREE.MeshBasicMaterial({ color: corRoupa });
+            const bodyGeo = new THREE.BoxGeometry(1.2, 1.6, 0.6);
+            const body = new THREE.Mesh(bodyGeo, bodyMat);
+            body.position.y = 1.6;
+            grupo.add(body);
+
+            const headMat = new THREE.MeshBasicMaterial({ color: 0xffcc80 });
+            const headGeo = new THREE.BoxGeometry(0.9, 0.9, 0.9);
+            const head = new THREE.Mesh(headGeo, headMat);
+            head.position.y = 2.6;
+            
+            const eyeMat = new THREE.MeshBasicMaterial({ color: 0x000000 });
+            const eyeGeo = new THREE.BoxGeometry(0.15, 0.15, 0.1);
+            const eyeL = new THREE.Mesh(eyeGeo, eyeMat);
+            eyeL.position.set(-0.2, 0.1, 0.46);
+            head.add(eyeL);
+            const eyeR = new THREE.Mesh(eyeGeo, eyeMat);
+            eyeR.position.set(0.2, 0.1, 0.46);
+            head.add(eyeR);
+
+            const hairCor = genero === 'F' ? 0x2e1100 : 0x111111;
+            const hairMat = new THREE.MeshBasicMaterial({ color: hairCor });
+            const hairGeo = new THREE.BoxGeometry(1.0, 0.3, 1.0);
+            const hair = new THREE.Mesh(hairGeo, hairMat);
+            hair.position.y = 0.5;
+            head.add(hair);
+
+            if(genero === 'F') {
+                const longHairGeo = new THREE.BoxGeometry(1.0, 1.2, 0.3);
+                const longHair = new THREE.Mesh(longHairGeo, hairMat);
+                longHair.position.set(0, -0.6, -0.35);
+                hair.add(longHair);
+            }
+
+            grupo.add(head);
+
+            const armGroupL = new THREE.Group();
+            armGroupL.position.set(-0.85, 2.2, 0);
+            const armMat = new THREE.MeshBasicMaterial({ color: corRoupa });
+            const armGeo = new THREE.BoxGeometry(0.35, 1.3, 0.4);
+            const leftArm = new THREE.Mesh(armGeo, armMat);
+            leftArm.position.y = -0.65;
+            armGroupL.add(leftArm);
+            grupo.add(armGroupL);
+            grupo.userData.leftArm = armGroupL;
+
+            const armGroupR = new THREE.Group();
+            armGroupR.position.set(0.85, 2.2, 0);
+            const rightArm = new THREE.Mesh(armGeo, armMat);
+            rightArm.position.y = -0.65;
+            armGroupR.add(rightArm);
+            grupo.add(armGroupR);
+            grupo.userData.rightArm = armGroupR;
+
+            if (toolEquipada && toolEquipada !== 'nenhuma') {
+                let toolMesh = criarMeshFerramenta(toolEquipada);
+                toolMesh.name = 'ferramentaMao';
+                armGroupR.add(toolMesh);
+            }
+
+            const legGroupL = new THREE.Group();
+            legGroupL.position.set(-0.35, 1.2, 0);
+            const legMat = new THREE.MeshBasicMaterial({ color: 0x111111 });
+            const legGeo = new THREE.BoxGeometry(0.4, 1.2, 0.5);
+            const leftLeg = new THREE.Mesh(legGeo, legMat);
+            leftLeg.position.y = -0.6;
+            legGroupL.add(leftLeg);
+            grupo.add(legGroupL);
+            grupo.userData.leftLeg = legGroupL;
+
+            const legGroupR = new THREE.Group();
+            legGroupR.position.set(0.35, 1.2, 0);
+            const rightLeg = new THREE.Mesh(legGeo, legMat);
+            rightLeg.position.y = -0.6;
+            legGroupR.add(rightLeg);
+            grupo.add(legGroupR);
+            grupo.userData.rightLeg = legGroupR;
+
+            const nomeSprite = criarNameTag(nomeJogador);
+            nomeSprite.position.set(0, 4.2, 0);
+            grupo.add(nomeSprite);
+
+            const emojiCanvas = document.createElement('canvas');
+            emojiCanvas.width = 512; emojiCanvas.height = 256;
+            const eCtx = emojiCanvas.getContext('2d');
+            const eTexture = new THREE.CanvasTexture(emojiCanvas);
+            const eMat = new THREE.SpriteMaterial({ map: eTexture, transparent: true, depthTest: false });
+            const emojiSprite = new THREE.Sprite(eMat);
+            emojiSprite.scale.set(8, 4, 1);
+            emojiSprite.position.set(0, 6.2, 0);
+            emojiSprite.visible = false;
+            grupo.add(emojiSprite);
+            
+            grupo.userData.emojiSprite = emojiSprite;
+            grupo.userData.emojiCtx = eCtx;
+            grupo.userData.emojiTexture = eTexture;
+
+            return grupo;
+        }
+
+        const base = document.getElementById('joystick-base');
+        const stick = document.getElementById('joystick-stick');
+
+        function handleTouch(e) {
+            const rect = base.getBoundingClientRect();
+            const centerX = rect.left + rect.width / 2;
+            const centerY = rect.top + rect.height / 2;
+            const touch = e.touches[0];
+            const dx = touch.clientX - centerX;
+            const dy = touch.clientY - centerY;
+            
+            distance = Math.hypot(dx, dy);
+            angle = Math.atan2(dy, dx);
+            if (distance > maxDist) distance = maxDist;
+
+            stick.style.transform = `translate(${Math.cos(angle) * distance}px, ${Math.sin(angle) * distance}px)`;
+            moving = true;
+            isMining = false; 
+            ultimoMovimentoTempo = Date.now();
+        }
+
+        function resetJoystick() {
+            moving = false;
+            distance = 0;
+            stick.style.transform = `translate(0px, 0px)`;
+        }
+
+        base.addEventListener('touchstart', (e) => { handleTouch(e); e.preventDefault(); }, {passive: false});
+        base.addEventListener('touchmove', (e) => { handleTouch(e); e.preventDefault(); }, {passive: false});
+        base.addEventListener('touchend', resetJoystick);
+        base.addEventListener('touchcancel', resetJoystick);
+
+        function estaNaAgua(x, z) {
+            if (dentroDeCasa) return false;
+            for (let rio of listaRios) {
+                if (Math.abs(x - rio.x) < rio.largura / 2) return true;
+            }
+            return false;
+        }
+
+        function testarColisao(proximoX, proximoZ) {
+            if (dentroDeCasa) {
+                return (proximoX < -7 || proximoX > 7 || proximoZ < -7 || proximoZ > 7);
+            }
+            for (let pedra of listaPedras) {
+                if (pedra.obj.visible && pedra.raio > 1.5 && Math.hypot(proximoX - pedra.x, proximoZ - pedra.z) < pedra.raio) return true;
+            }
+            for (let arvore of listaArvores) {
+                if (arvore.obj.visible && Math.hypot(proximoX - arvore.x, proximoZ - arvore.z) < arvore.raio) return true;
+            }
+            for (let idCasa in casasGlobais) {
+                let posCasa = casasGlobais[idCasa];
+                if (!posCasa) continue;
+                let dentroDaCasa = Math.hypot(proximoX - posCasa.x, proximoZ - posCasa.z) < 3.0;
+                if (dentroDaCasa && idCasa !== meuId) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        function obterAlvoMineracao(px, pz) {
+            if (dentroDeCasa) return null;
+            let alcance = 2.5;
+
+            // Verificar se quer pegar a mesa de trabalho (sem ferramenta na mão)
+            if (ferramentaEquipada === 'nenhuma') {
+                for (let mId in mesasTrabalhoGlobais) {
+                    let m = mesasTrabalhoGlobais[mId];
+                    if (Math.hypot(px - m.x, pz - m.z) < alcance + 1.0) {
+                        return { type: 'mesaTrabalho', id: mId, x: m.x, z: m.z };
+                    }
+                }
+            }
+
+            for (let diam of listaDiamantes) {
+                if (diam.obj.visible && Math.hypot(px - diam.x, pz - diam.z) < diam.raio + alcance) return diam;
+            }
+            for (let iron of listaFerros) {
+                if (iron.obj.visible && Math.hypot(px - iron.x, pz - iron.z) < iron.raio + alcance) return iron;
+            }
+            for (let pedra of listaPedras) {
+                if (pedra.obj.visible && pedra.raio > 1.5 && Math.hypot(px - pedra.x, pz - pedra.z) < pedra.raio + alcance) return pedra;
+            }
+            for (let arvore of listaArvores) {
+                if (arvore.obj.visible && Math.hypot(px - arvore.x, pz - arvore.z) < arvore.raio + alcance) return arvore;
+            }
+            return null;
+        }
+
+        const geoParticula = new THREE.BoxGeometry(0.2, 0.2, 0.2);
+
+        function spawnParticulasMineracao(alvo) {
+            let cor = 0x888888;
+            if (alvo.type === 'arvore') cor = 0x5D4037;
+            if (alvo.type === 'ferro') cor = 0x78909c;
+            if (alvo.type === 'diamante') cor = 0x00bcd4;
+            if (alvo.type === 'mesaTrabalho') cor = 0x795548;
+
+            let part;
+            if (poolParticulas.length > 0) {
+                part = poolParticulas.pop();
+                part.visible = true;
+                part.material.color.setHex(cor);
+            } else {
+                part = new THREE.Mesh(geoParticula, new THREE.MeshBasicMaterial({ color: cor }));
+                scene.add(part);
+            }
+
+            part.position.set(posX + (Math.random() - 0.5) * 0.5, 1.5, posZ + (Math.random() - 0.5) * 0.5);
+            
+            particulasAtivas.push({
+                mesh: part,
+                vx: (Math.random() - 0.5) * 3,
+                vy: Math.random() * 3 + 2,
+                vz: (Math.random() - 0.5) * 3,
+                life: 0.6
+            });
+        }
+
+        function atualizarParticulas(dt) {
+            for (let i = particulasAtivas.length - 1; i >= 0; i--) {
+                let p = particulasAtivas[i];
+                p.vy -= 10 * dt; 
+                p.mesh.position.x += p.vx * dt;
+                p.mesh.position.y += p.vy * dt;
+                p.mesh.position.z += p.vz * dt;
+                
+                p.life -= dt;
+                if (p.life <= 0) {
+                    p.mesh.visible = false;
+                    particulasAtivas.splice(i, 1);
+                    poolParticulas.push(p.mesh);
+                }
+            }
+        }
+
+        function criarPegada(x, z) {
+            if (dentroDeCasa) return;
+            const pegadaGeo = new THREE.PlaneGeometry(0.4, 0.4);
+            const pegadaMat = new THREE.MeshBasicMaterial({ color: 0x222222, transparent: true, opacity: 0.5 });
+            const pegada = new THREE.Mesh(pegadaGeo, pegadaMat);
+            pegada.rotation.x = -Math.PI / 2;
+            pegada.position.set(x, 0.02, z);
+            scene.add(pegada);
+            listaPegadas.push({ mesh: pegada, life: 5.0 });
+
+            if(listaPegadas.length > 40) {
+                let antiga = listaPegadas.shift();
+                scene.remove(antiga.mesh);
+            }
+        }
+
+        function atualizarPegadas(dt) {
+            for(let i = listaPegadas.length - 1; i >= 0; i--) {
+                let p = listaPegadas[i];
+                p.life -= dt;
+                p.mesh.material.opacity = (p.life / 5.0) * 0.5;
+                if(p.life <= 0) {
+                    scene.remove(p.mesh);
+                    listaPegadas.splice(i, 1);
+                }
+            }
+        }
+
+        function verificarColetaItensChao() {
+            if(dentroDeCasa) return;
+            for(let id in itensChaoMeshes) {
+                let mesh = itensChaoMeshes[id];
+                if(Math.hypot(mesh.position.x - posX, mesh.position.z - posZ) < 1.5) {
+                    db.ref('mundo3d_v7/itensChao/' + id).once('value', snap => {
+                        let it = snap.val();
+                        if(it) {
+                            if(it.tipo === 'pedra') invPedras += it.qtd;
+                            else if(it.tipo === 'madeira') invMadeiras += it.qtd;
+                            else if(it.tipo === 'ferro') invFerros += it.qtd;
+                            else if(it.tipo === 'diamante') invDiamantes += it.qtd;
+                            else if(it.tipo === 'mesa') invMesas += it.qtd;
+
+                            db.ref('mundo3d_v7/itensChao/' + id).remove();
+                            showFloatingText(`+${it.qtd} ${it.tipo}`, "#4caf50");
+                            atualizarUIInventario();
+                            salvarDadosBanco();
+                        }
+                    });
+                }
+            }
+        }
+
+        function receberDano(qtd) {
+            vidaAtual = Math.max(0, vidaAtual - qtd);
+            ultimoDanoTempo = Date.now();
+            atualizarUIHealth();
+
+            const overlay = document.getElementById('damage-overlay');
+            overlay.style.opacity = '0.85';
+            setTimeout(() => { overlay.style.opacity = '0'; }, 200);
+
+            if (vidaAtual <= 0) {
+                morrer();
+            }
+        }
+
+        function morrer() {
+            showFloatingText("Você Morreu!", "#d32f2f");
+            
+            // Dropar itens no chão
+            if(invPedras > 0) { droparItemChaoDireto('pedra', invPedras); invPedras = 0; }
+            if(invMadeiras > 0) { droparItemChaoDireto('madeira', invMadeiras); invMadeiras = 0; }
+            if(invFerros > 0) { droparItemChaoDireto('ferro', invFerros); invFerros = 0; }
+            if(invDiamantes > 0) { droparItemChaoDireto('diamante', invDiamantes); invDiamantes = 0; }
+            if(invMesas > 0) { droparItemChaoDireto('mesa', invMesas); invMesas = 0; }
+            salvarDadosBanco();
+
+            // Mostrar tela de morte
+            const deathScreen = document.getElementById('death-screen');
+            const optionsContainer = document.getElementById('respawn-options-container');
+            optionsContainer.innerHTML = '';
+
+            let btnSpawnCentro = document.createElement('button');
+            btnSpawnCentro.className = 'spawn-btn';
+            btnSpawnCentro.innerText = 'Renascer no Centro';
+            btnSpawnCentro.onclick = () => executarRenascimento(0, 0);
+            optionsContainer.appendChild(btnSpawnCentro);
+
+            if(minhaCasaPos) {
+                let btnSpawnCasa = document.createElement('button');
+                btnSpawnCasa.className = 'spawn-btn';
+                btnSpawnCasa.innerText = 'Renascer na sua Casa';
+                btnSpawnCasa.onclick = () => executarRenascimento(minhaCasaPos.x + 3, minhaCasaPos.z);
+                optionsContainer.appendChild(btnSpawnCasa);
+            }
+
+            deathScreen.style.display = 'flex';
+        }
+
+        function droparItemChaoDireto(tipo, qtd) {
+            const itemChaoRef = db.ref('mundo3d_v7/itensChao').push();
+            itemChaoRef.set({
+                tipo: tipo,
+                qtd: qtd,
+                x: posX + (Math.random() - 0.5) * 2,
+                z: posZ + (Math.random() - 0.5) * 2
+            });
+        }
+
+        function executarRenascimento(rx, rz) {
+            document.getElementById('death-screen').style.display = 'none';
+            vidaAtual = vidaMaxima;
+            atualizarUIHealth();
+            posX = rx;
+            posZ = rz;
+            dentroDeCasa = false;
+            if(interiorCasaGroup) interiorCasaGroup.position.set(0, -1000, 0);
+        }
+
+        function atualizarRegeneracao(dt) {
+            if (Date.now() - ultimoDanoTempo > 3000) {
+                if (vidaAtual < vidaMaxima) {
+                    vidaAtual = Math.min(vidaMaxima, vidaAtual + 12 * dt);
+                    atualizarUIHealth();
+                }
+            }
+        }
+
+        function atualizarUIHealth() {
+            const fill = document.getElementById('health-bar-fill');
+            const txt = document.getElementById('health-txt');
+            if (fill) fill.style.width = (vidaAtual / vidaMaxima * 100) + '%';
+            if (txt) txt.innerText = Math.ceil(vidaAtual) + '/' + vidaMaxima;
+        }
+
+        // ATAQUE (ZUMBIS E JOGADORES)
+        function atacar() {
+            if (isAttacking) return;
+            isAttacking = true;
+            attackAnimTimer = 0;
+
+            let dano = 10;
+            if (ferramentaEquipada === 'espadaMadeira') dano = 25;
+            else if (ferramentaEquipada === 'espadaPedra') dano = 40;
+            else if (ferramentaEquipada === 'espadaFerro') dano = 65;
+            else if (ferramentaEquipada === 'espadaDiamante') dano = 100;
+            else if (ferramentaEquipada.includes('machado')) dano = 20;
+            else if (ferramentaEquipada.includes('picareta')) dano = 15;
+
+            let alcance = 3.5;
+
+            // Atacar jogadores
+            for (let jId in jogadoresAtuais) {
+                if (jId === meuId || jogadoresAtuais[jId].online === false) continue;
+                let j = jogadoresAtuais[jId];
+                let dist = Math.hypot((j.x || 0) - posX, (j.z || 0) - posZ);
+                if (dist <= alcance) {
+                    db.ref('mundo3d_v7/jogadores/' + jId + '/receberDanoPor').set({
+                        dano: dano,
+                        por: meuId,
+                        timestamp: Date.now()
+                    });
+                    showFloatingText(`-${dano} ⚔️`, "#ff1744");
+                }
+            }
+
+            // Atacar zumbis
+            for (let zId in zumbisDados) {
+                let z = zumbisDados[zId];
+                if (!z || z.hp <= 0) continue;
+                let dist = Math.hypot(z.x - posX, z.z - posZ);
+                if (dist <= alcance) {
+                    let novoHp = Math.max(0, z.hp - dano);
+                    showFloatingText(`-${dano} ⚔️`, "#ff1744");
+
+                    let dx = z.x - posX;
+                    let dz = z.z - posZ;
+                    let norm = Math.hypot(dx, dz) || 1;
+                    let empurraoX = z.x + (dx / norm) * 1.5;
+                    let empurraoZ = z.z + (dz / norm) * 1.5;
+
+                    if (novoHp <= 0) {
+                        showFloatingText("Zumbi Derrotado!", "#4caf50");
+                        db.ref('mundo3d_v7/zumbis/' + zId).remove();
+                    } else {
+                        db.ref('mundo3d_v7/zumbis/' + zId).update({
+                            hp: novoHp,
+                            x: empurraoX,
+                            z: empurraoZ
+                        });
+                    }
+                }
+            }
+        }
+
+        // CICLO DIA / NOITE SINCRONIZADO
+        function atualizarCicloDiaNoite() {
+            let tempoServidor = Date.now() + serverTimeOffset;
+            let segs = (tempoServidor / 1000) % tempoCicloTotal;
+            let iconEl = document.getElementById('day-night-icon');
+            let fillEl = document.getElementById('day-night-bar-fill');
+
+            if (segs < tempoDia) {
+                ehNoite = false;
+                let progressoDia = 1 - (segs / tempoDia);
+                if (iconEl) iconEl.innerText = "☀️";
+                if (fillEl) {
+                    fillEl.style.width = (progressoDia * 100) + "%";
+                    fillEl.style.backgroundColor = "#ffca28";
+                }
+            } else {
+                ehNoite = true;
+                let progressoNoite = 1 - ((segs - tempoDia) / (tempoCicloTotal - tempoDia));
+                if (iconEl) iconEl.innerText = "🌙";
+                if (fillEl) {
+                    fillEl.style.width = (progressoNoite * 100) + "%";
+                    fillEl.style.backgroundColor = "#7e57c2";
+                }
+            }
+
+            let fatorLuz = ehNoite ? 0.2 : 0.85;
+            if (luzAmbiente && luzDirecional) {
+                luzAmbiente.intensity = THREE.MathUtils.lerp(luzAmbiente.intensity, fatorLuz, 0.05);
+                luzDirecional.intensity = THREE.MathUtils.lerp(luzDirecional.intensity, ehNoite ? 0.08 : 0.6, 0.05);
+            }
+
+            if (ehNoite) {
+                verificarESpawnarZumbisGlobal();
+            } else {
+                limparZumbisNoDia();
+            }
+        }
+
+        let ultimoCheckZumbi = 0;
+        function verificarESpawnarZumbisGlobal() {
+            if (Date.now() - ultimoCheckZumbi < 5000) return;
+            ultimoCheckZumbi = Date.now();
+
+            const zumbisRef = db.ref('mundo3d_v7/zumbis');
+            zumbisRef.once('value', snapshot => {
+                const dados = snapshot.val() || {};
+                const qtd = Object.keys(dados).length;
+                if (qtd < 20) {
+                    for (let i = 0; i < 15; i++) {
+                        let zId = 'zumbi_' + Math.floor(Math.random() * 100000);
+                        let ang = Math.random() * Math.PI * 2;
+                        let raio = Math.random() * 30 + 10;
+                        let zX = posX + Math.cos(ang) * raio;
+                        let zZ = posZ + Math.sin(ang) * raio;
+                        zumbisRef.child(zId).set({
+                            x: zX,
+                            z: zZ,
+                            hp: 100
+                        });
+                    }
+                }
+            });
+        }
+
+        function limparZumbisNoDia() {
+            if (Date.now() - ultimoCheckZumbi < 5000) return;
+            ultimoCheckZumbi = Date.now();
+            const zumbisRef = db.ref('mundo3d_v7/zumbis');
+            zumbisRef.once('value', snapshot => {
+                if (snapshot.exists()) {
+                    zumbisRef.remove();
+                }
+            });
+        }
+
+        function ouvirZumbisOnline() {
+            db.ref('mundo3d_v7/zumbis').on('value', snapshot => {
+                zumbisDados = snapshot.val() || {};
+                
+                for (let id in zumbisMeshes) {
+                    if (!zumbisDados[id]) {
+                        scene.remove(zumbisMeshes[id]);
+                        delete zumbisMeshes[id];
+                    }
+                }
+
+                for (let id in zumbisDados) {
+                    let z = zumbisDados[id];
+                    if (!zumbisMeshes[id]) {
+                        zumbisMeshes[id] = criarModeloZumbi3D();
+                        scene.add(zumbisMeshes[id]);
+                    }
+                    let mesh = zumbisMeshes[id];
+                    mesh.position.x = z.x;
+                    mesh.position.z = z.z;
+                }
+            });
+        }
+
+        let tempoUltimoAtaqueZumbi = 0;
+        function atualizarIAZumbis(dt) {
+            if (!ehNoite || dentroDeCasa) return;
+
+            for (let id in zumbisDados) {
+                let z = zumbisDados[id];
+                let mesh = zumbisMeshes[id];
+                if (!mesh) continue;
+
+                // Achar jogador mais próximo
+                let alvoX = posX, alvoZ = posZ;
+                let menorDist = Math.hypot(posX - z.x, posZ - z.z);
+
+                for (let jId in jogadoresAtuais) {
+                    if(jId === meuId || jogadoresAtuais[jId].online === false) continue;
+                    let jp = jogadoresAtuais[jId];
+                    let distJ = Math.hypot((jp.x || 0) - z.x, (jp.z || 0) - z.z);
+                    if(distJ < menorDist) {
+                        menorDist = distJ;
+                        alvoX = jp.x || 0;
+                        alvoZ = jp.z || 0;
+                    }
+                }
+
+                if (menorDist < 50 && menorDist > 1.2) {
+                    let angulo = Math.atan2(alvoZ - z.z, alvoX - z.x);
+                    let vel = 0.05;
+                    let novoX = z.x + Math.cos(angulo) * vel;
+                    let novoZ = z.z + Math.sin(angulo) * vel;
+
+                    mesh.position.x = novoX;
+                    mesh.position.z = novoZ;
+                    mesh.rotation.y = -angulo + Math.PI / 2;
+
+                    z.x = novoX;
+                    z.z = novoZ;
+
+                    if (Math.random() < 0.03) {
+                        db.ref('mundo3d_v7/zumbis/' + id).update({ x: novoX, z: novoZ });
+                    }
+                } else if (menorDist <= 1.2 && menorDist === Math.hypot(posX - z.x, posZ - z.z)) {
+                    if (Date.now() - tempoUltimoAtaqueZumbi > 1200) {
+                        tempoUltimoAtaqueZumbi = Date.now();
+                        receberDano(15);
+                    }
+                }
+            }
+        }
+
+        function atualizarMinimapaEDirecaoCasa() {
+            const canvas = document.getElementById('minimap');
+            if(!canvas) return;
+            const ctx = canvas.getContext('2d');
+            const w = canvas.width;
+            const h = canvas.height;
+            const cx = w / 2, cz = h / 2;
+            const mapScale = 1.3; 
+
+            ctx.clearRect(0, 0, w, h);
+
+            if (!dentroDeCasa) {
+                ctx.fillStyle = '#1e88e5';
+                for (let rio of listaRios) {
+                    let rx = (rio.x - posX) * mapScale + cx;
+                    ctx.fillRect(rx - (rio.largura * mapScale / 2), 0, rio.largura * mapScale, h);
+                }
+            }
+
+            function desenharPonto(x, z, cor, tamanho) {
+                let dx = (x - posX) * mapScale;
+                let dz = (z - posZ) * mapScale;
+                if (Math.hypot(dx, dz) < cx) { 
+                    ctx.fillStyle = cor;
+                    ctx.beginPath(); ctx.arc(cx + dx, cz + dz, tamanho, 0, Math.PI * 2); ctx.fill();
+                }
+            }
+
+            if (!dentroDeCasa) {
+                listaPedras.forEach(p => { if(p.obj.visible) desenharPonto(p.x, p.z, '#888888', p.raio > 1.5 ? 2.5 : 1.0); });
+                listaFerros.forEach(f => { if(f.obj.visible) desenharPonto(f.x, f.z, '#78909c', 2.0); });
+                listaDiamantes.forEach(d => { if(d.obj.visible) desenharPonto(d.x, d.z, '#00bcd4', 2.5); });
+                listaArvores.forEach(a => { if(a.obj.visible) desenharPonto(a.x, a.z, '#2E7D32', 2.0); });
+                
+                for (let id in zumbisDados) {
+                    desenharPonto(zumbisDados[id].x, zumbisDados[id].z, '#76ff03', 3.0);
+                }
+
+                for (let id in casasGlobais) {
+                    if(casasGlobais[id]) desenharPonto(casasGlobais[id].x, casasGlobais[id].z, '#ff9800', 4.0);
+                }
+
+                for (let id in jogadoresAtuais) {
+                    if (id !== meuId && jogadoresAtuais[id].online !== false) desenharPonto(jogadoresAtuais[id].x, jogadoresAtuais[id]?.z || 0, '#ff3333', 3.5);
+                }
+            }
+            
+            ctx.fillStyle = '#00ffff';
+            ctx.beginPath(); ctx.arc(cx, cz, 4.5, 0, Math.PI * 2); ctx.fill();
+            ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 1; ctx.stroke();
+
+            if (minhaCasaPos && !dentroDeCasa && setaCasa3D && meuAvatar3D) {
+                let distCasa = Math.hypot(minhaCasaPos.x - posX, minhaCasaPos.z - posZ);
+                if (distCasa > 5) {
+                    setaCasa3D.visible = true;
+                    setaCasa3D.position.set(meuAvatar3D.position.x, 0.4, meuAvatar3D.position.z);
+                    setaCasa3D.lookAt(minhaCasaPos.x, 0.4, minhaCasaPos.z);
+                    setaCasa3D.translateZ(1.8);
+                } else {
+                    setaCasa3D.visible = false;
+                }
+            } else if (setaCasa3D) {
+                setaCasa3D.visible = false;
+            }
+        }
+
+        let tempoUltimaPegada = 0;
+
+        function iniciarGameLoop() {
+            let minerarCooldown = 0;
+
+            function gameLoop() {
+                requestAnimationFrame(gameLoop);
+                
+                const agora = performance.now();
+                const dt = (agora - lastTime) / 1000;
+                lastTime = agora;
+                animTimer += dt * 10;
+
+                if (Date.now() - ultimoMovimentoTempo > 600000 && meuRef) {
+                    meuRef.update({ online: false });
+                }
+
+                atualizarCicloDiaNoite();
+                atualizarRegeneracao(dt);
+                atualizarIAZumbis(dt);
+                atualizarParticulas(dt);
+                atualizarPegadas(dt);
+                verificarColetaItensChao();
+
+                // Checar se recebeu dano de outro jogador
+                if(meuRef) {
+                    meuRef.child('receberDanoPor').once('value', snap => {
+                        let val = snap.val();
+                        if(val && val.timestamp > (window.ultimoDanoRecebidoTs || 0)) {
+                            window.ultimoDanoRecebidoTs = val.timestamp;
+                            receberDano(val.dano);
+                            meuRef.child('receberDanoPor').remove();
+                        }
+                    });
+                }
+
+                if (isAttacking && meuAvatar3D && meuAvatar3D.userData.rightArm) {
+                    attackAnimTimer += dt;
+                    meuAvatar3D.userData.rightArm.rotation.x = -Math.PI / 2 - Math.sin(attackAnimTimer * 15) * 1.2;
+                    if (attackAnimTimer > 0.3) {
+                        isAttacking = false;
+                        attackAnimTimer = 0;
+                    }
+                }
+
+                if (moving) {
+                    let velocidade = estaNaAgua(posX, posZ) ? 0.05 : 0.09;
+                    let proximoX = posX + Math.cos(angle) * velocidade;
+                    let proximoZ = posZ + Math.sin(angle) * velocidade;
+
+                    if (!testarColisao(proximoX, proximoZ)) {
+                        posX = proximoX;
+                        posZ = proximoZ;
+                    }
+
+                    if (meuAvatar3D) {
+                        meuAvatar3D.position.set(posX, 0, posZ);
+                        meuAvatar3D.rotation.y = -angle + Math.PI / 2;
+
+                        let swing = Math.sin(animTimer) * 0.6;
+                        if(meuAvatar3D.userData.leftLeg) meuAvatar3D.userData.leftLeg.rotation.x = swing;
+                        if(meuAvatar3D.userData.rightLeg) meuAvatar3D.userData.rightLeg.rotation.x = -swing;
+                        if(meuAvatar3D.userData.leftArm && !isAttacking) meuAvatar3D.userData.leftArm.rotation.x = -swing;
+                        if(meuAvatar3D.userData.rightArm && !isAttacking) meuAvatar3D.userData.rightArm.rotation.x = swing;
+                    }
+
+                    if (Date.now() - tempoUltimaPegada > 400) {
+                        tempoUltimaPegada = Date.now();
+                        criarPegada(posX, posZ);
+                    }
+
+                    let alvo = obterAlvoMineracao(posX, posZ);
+                    const btnInteracao = document.getElementById('interaction-btn');
+                    const btnCasa = document.getElementById('enter-house-btn');
+
+                    if (alvo) {
+                        if (alvo.type === 'mesaTrabalho') {
+                            btnInteracao.style.display = 'block';
+                            btnInteracao.innerText = "📦 Pegar Mesa";
+                        } else {
+                            minerarCooldown += dt;
+                            if (minerarCooldown > 0.4) {
+                                minerarCooldown = 0;
+                                spawnParticulasMineracao(alvo);
+
+                                let danoMin = 25;
+                                if(ferramentaEquipada.includes('Madeira')) danoMin = 35;
+                                else if(ferramentaEquipada.includes('Pedra')) danoMin = 50;
+                                else if(ferramentaEquipada.includes('Ferro')) danoMin = 75;
+                                else if(ferramentaEquipada.includes('Diamante')) danoMin = 100;
+
+                                if (alvo.hp === undefined) alvo.hp = 100;
+                                alvo.hp -= danoMin;
+
+                                if (alvo.hp <= 0) {
+                                    alvo.obj.visible = false;
+                                    if (alvo.type === 'pedra') {
+                                        invPedras += 2;
+                                        showFloatingText("+2 Pedras", "#888888");
+                                    } else if (alvo.type === 'arvore') {
+                                        invMadeiras += 3;
+                                        showFloatingText("+3 Madeiras", "#8d6e63");
+                                    } else if (alvo.type === 'ferro') {
+                                        invFerros += 2;
+                                        showFloatingText("+2 Ferros", "#b0bec5");
+                                    } else if (alvo.type === 'diamante') {
+                                        invDiamantes += 1;
+                                        showFloatingText("+1 Diamante", "#00bcd4");
+                                    }
+                                    atualizarUIInventario();
+                                    salvarDadosBanco();
+
+                                    setTimeout(() => {
+                                        alvo.hp = 100;
+                                        alvo.obj.visible = true;
+                                    }, 15000);
+                                }
+                            }
+                        }
+                    } else {
+                        btnInteracao.style.display = 'none';
+                    }
+
+                    if (minhaCasaPos && !dentroDeCasa && Math.hypot(posX - minhaCasaPos.x, posZ - minhaCasaPos.z) < 2.5) {
+                        btnCasa.style.display = 'block';
+                    } else {
+                        btnCasa.style.display = 'none';
+                    }
+
+                } else {
+                    if (meuAvatar3D) {
+                        if(meuAvatar3D.userData.leftLeg) meuAvatar3D.userData.leftLeg.rotation.x = 0;
+                        if(meuAvatar3D.userData.rightLeg) meuAvatar3D.userData.rightLeg.rotation.x = 0;
+                        if(meuAvatar3D.userData.leftArm && !isAttacking) meuAvatar3D.userData.leftArm.rotation.x = 0;
+                        if(meuAvatar3D.userData.rightArm && !isAttacking) meuAvatar3D.userData.rightArm.rotation.x = 0;
+                    }
+                    document.getElementById('interaction-btn').style.display = 'none';
+                    if (!minhaCasaPos || dentroDeCasa || Math.hypot(posX - minhaCasaPos.x, posZ - minhaCasaPos.z) >= 2.5) {
+                        document.getElementById('enter-house-btn').style.display = 'none';
+                    }
+                }
+
+                if (camera && meuAvatar3D) {
+                    if (dentroDeCasa && minhaCasaPos) {
+                        camera.position.set(minhaCasaPos.x, 9, minhaCasaPos.z + 8);
+                        camera.lookAt(minhaCasaPos.x, 2, minhaCasaPos.z);
+                    } else {
+                        camera.position.set(posX, 14, posZ + 14);
+                        camera.lookAt(posX, 1.5, posZ);
+                    }
+                }
+
+                if (meuRef && Math.random() < 0.2) {
+                    meuRef.update({ x: posX, z: posZ });
+                }
+
+                atualizarMinimapaEDirecaoCasa();
+                renderer.render(scene, camera);
+            }
+            gameLoop();
+        }
+
+        function ouvirJogadoresOnline() {
+            db.ref('mundo3d_v7/jogadores').on('value', snapshot => {
+                const dados = snapshot.val() || {};
+                jogadoresAtuais = dados;
+                casasGlobais = {};
+
+                let onlineCount = 0;
+                for (let id in dados) {
+                    let j = dados[id];
+                    if (j.online !== false) onlineCount++;
+                    if (j.casaPos) casasGlobais[id] = j.casaPos;
+
+                    if (j.casaPos && !casasMeshes[id]) {
+                        criarMeshCasa(id, j.casaPos);
+                    }
+
+                    if (id === meuId) continue;
+
+                    if (!outrosJogadoresMeshes[id]) {
+                        let mesh = criarModeloHumano3D(j.genero || 'M', j.nome || 'Jogador', j.ferramentaEquipada || 'nenhuma');
+                        scene.add(mesh);
+                        outrosJogadoresMeshes[id] = mesh;
+                    }
+
+                    let outroMesh = outrosJogadoresMeshes[id];
+                    if (j.online === false) {
+                        outroMesh.visible = false;
+                        continue;
+                    } else {
+                        outroMesh.visible = true;
+                    }
+
+                    outroMesh.position.set(j.x || 0, 0, j.z || 0);
+                    if (j.ferramentaEquipada !== undefined) {
+                        atualizarFerramentaNaMao(outroMesh, j.ferramentaEquipada);
+                    }
+
+                    if (j.emoji && j.emoji !== "") {
+                        outroMesh.userData.emojiSprite.visible = true;
+                        desenharBalao(outroMesh.userData.emojiCtx, j.emoji);
+                        outroMesh.userData.emojiTexture.needsUpdate = true;
+                    } else {
+                        outroMesh.userData.emojiSprite.visible = false;
+                    }
+                }
+                const statusTxt = document.getElementById('status-txt');
+                if(statusTxt) statusTxt.innerText = "Online: " + onlineCount;
+            });
+        }
+
+        function abrirMenuEmojis() {
+            const menu = document.getElementById('emoji-menu');
+            menu.style.display = menu.style.display === 'flex' ? 'none' : 'flex';
+        }
+
+        function enviarEmoji(emoji) {
+            if (meuRef) {
+                meuRef.update({ emoji: emoji });
+                if (meuAvatar3D) {
+                    meuAvatar3D.userData.emojiSprite.visible = true;
+                    desenharBalao(meuAvatar3D.userData.emojiCtx, emoji);
+                    meuAvatar3D.userData.emojiTexture.needsUpdate = true;
+                }
+                setTimeout(() => {
+                    meuRef.update({ emoji: "" });
+                    if (meuAvatar3D) meuAvatar3D.userData.emojiSprite.visible = false;
+                }, 3000);
+            }
+            document.getElementById('emoji-menu').style.display = 'none';
+        }
+
+        function enviarMensagemDigitada() {
+            const input = document.getElementById('chat-input-msg');
+            const msg = input.value.trim();
+            if (!msg) return;
+            enviarEmoji(msg);
+            input.value = "";
+        }
     </script>
 </body>
 </html>
