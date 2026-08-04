@@ -1,756 +1,142 @@
 <!DOCTYPE html>
-<html lang="pt-br">
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Açaí Bom Gosto</title></head>
-<body style="margin:0; background:#f9fafb;">
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>Cidade Virtual Online</title>
+    <style>
+        body { margin: 0; background: #222; overflow: hidden; font-family: sans-serif; }
+        #cidade { position: relative; width: 100vw; height: 80vh; background: #4caf50; border-bottom: 4px solid #333; }
+        .avatar { position: absolute; width: 40px; height: 40px; background: #ffeb3b; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 12px; transition: 0.1s linear; }
+        .balao { position: absolute; top: -25px; background: white; padding: 2px 6px; font-size: 10px; border-radius: 4px; white-space: nowrap; }
+        #painel-chat { height: 20vh; background: #111; color: white; padding: 10px; display: flex; flex-direction: column; }
+        #mensagens { flex: 1; overflow-y: auto; font-size: 14px; margin-bottom: 5px; }
+        input { padding: 8px; }
+    </style>
+</head>
+<body>
 
-                <style>
-                    * { -webkit-tap-highlight-color: transparent; scrollbar-width: none; }
-                    *::-webkit-scrollbar { display: none; }
-                    .header-anim { transition: transform 0.3s ease, opacity 0.3s ease; }
-                    input[type="checkbox"] { accent-color: #350080; }
-                    .safe-container { max-width: 600px; margin: 0 auto; position: relative; background: #f9fafb; min-height: 100%; }
-                </style>
-                <div id="appClient" class="safe-container" style="overflow-y:auto; padding-bottom:100px; font-family:'Inter',sans-serif;">
+    <div id="cidade">
+        <!-- Os avatares dos jogadores aparecerão aqui dinamicamente -->
+    </div>
+
+    <div id="painel-chat">
+        <div id="mensagens"></div>
+        <input type="text" id="inputChat" placeholder="Digite sua mensagem e aperte Enter...">
+    </div>
+
+    <!-- Firebase SDK -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getDatabase, ref, set, onValue, push, remove, onDisconnect } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+
+        const firebaseConfig = {
+            apiKey: "SUA_API_KEY",
+            authDomain: "SEU_PROJETO.firebaseapp.com",
+            databaseURL: "https://SEU_PROJETO-default-rtdb.firebaseio.com",
+            projectId: "SEU_PROJETO",
+            storageBucket: "SEU_PROJETO.appspot.com",
+            messagingSenderId: "SUA_ID",
+            appId: "SEU_APP_ID"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getDatabase(app);
+
+        // Identidade do Jogador Atual
+        const meuId = "user_" + Math.floor(Math.random() * 10000);
+        const meuNome = "Player" + Math.floor(Math.random() * 100);
+        let posX = 100;
+        let posY = 100;
+
+        const meuRef = ref(db, 'cidade/jogadores/' + meuId);
+        
+        // Remove o jogador do banco quando ele fecha a página
+        onDisconnect(meuRef).remove();
+
+        // Envia posição inicial
+        set(meuRef, { nome: meuNome, x: posX, y: posY, mensagem: "" });
+
+        // Movimento com as setas do teclado
+        window.addEventListener('keydown', (e) => {
+            const velocidade = 10;
+            if (e.key === 'ArrowUp') posY -= velocidade;
+            if (e.key === 'ArrowDown') posY += velocidade;
+            if (e.key === 'ArrowLeft') posX -= velocidade;
+            if (e.key === 'ArrowRight') posX += velocidade;
+
+            // Atualiza posição no Firebase
+            set(meuRef, { nome: meuNome, x: posX, y: posY });
+        });
+
+        // Ouve todos os jogadores na cidade em tempo real
+        const jogadoresRef = ref(db, 'cidade/jogadores');
+        onValue(jogadoresRef, (snapshot) => {
+            const dados = snapshot.val();
+            const container = document.getElementById('cidade');
+            container.innerHTML = ''; // Limpa a tela para redesenhar
+
+            if (dados) {
+                for (let id in dados) {
+                    let p = dados[id];
                     
-                    <div id="netStatusBanner" style="display:none; position:sticky; top:0; z-index:99999; padding:8px 16px; text-align:center; font-size:12px; font-weight:700; color:white; transition: background 0.3s;"></div>
+                    // Cria o elemento visual do personagem
+                    let div = document.createElement('div');
+                    div.className = 'avatar';
+                    div.style.left = p.x + 'px';
+                    div.style.top = p.y + 'px';
+                    div.innerText = p.nome.substring(0, 3); // Primeiras letras do nome
 
-                    <div id="simAlertModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:99999; align-items:center; justify-content:center; padding:20px; backdrop-filter:blur(4px);">
-                        <div style="background:white; width:100%; max-width:340px; padding:24px; border-radius:20px; text-align:center; box-shadow:0 10px 25px rgba(0,0,0,0.15);">
-                            <div style="font-size:32px; margin-bottom:10px;">⚠️</div>
-                            <h3 id="simAlertTitle" style="font-size:18px; font-weight:700; color:#111827; margin-bottom:8px;">Atenção</h3>
-                            <p id="simAlertText" style="font-size:13px; color:#6b7280; line-height:1.4; margin-bottom:20px;"></p>
-                            <button type="button" onclick="fecharSimAlerta()" style="width:100%; background:#350080; color:white; border:none; padding:12px; border-radius:12px; font-weight:700; font-size:14px; cursor:pointer;">Entendido</button>
-                        </div>
-                    </div>
+                    // Se ele mandou mensagem, mostra um balãozinho
+                    if (p.mensagem) {
+                        let balao = document.createElement('div');
+                        balao.className = 'balao';
+                        balao.innerText = p.mensagem;
+                        div.appendChild(balao);
+                    }
 
-                    <div id="mainHeaderCard" class="header-anim" style="position:sticky; top:0; z-index:100; background:url(https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRo-WT-hU42F-XLujxtNXDU3UmgTsY4QvhQJMNjsTosSQ&s=10) center/cover no-repeat; padding:20px 16px 16px 16px; color:white; border-bottom-left-radius:20px; border-bottom-right-radius:20px; box-shadow: 0 4px 15px rgba(0,0,0,0.1);">
-                        <div style="position:absolute; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.55); z-index:1; border-bottom-left-radius:20px; border-bottom-right-radius:20px;"></div>
-                        
-                        <div id="cartIconContainer" onclick="abrirCarrinho()" style="position:absolute; top:16px; right:16px; cursor:pointer; display:flex; align-items:center; padding:8px; z-index:10;">
-                            <div style="position:relative; display:flex; align-items:center; justify-content:center; background:rgba(255,255,255,0.25); padding:10px; border-radius:50%; backdrop-filter:blur(4px);">
-                                <svg class="icon" style="width:22px !important; height:22px !important; fill:#ffffff;" viewBox="0 0 24 24">
-                                    <path d="M7 18c-1.1 0-1.99.9-1.99 2S5.9 22 7 22s2-.9 2-2-.9-2-2-2zM1 2v2h2l3.6 7.59-1.35 2.45c-.16.28-.25.61-.25.96 0 1.1.9 2 2 2h12v-2H7.42c-.14 0-.25-.11-.25-.25l.03-.12.9-1.63h7.45c.75 0 1.41-.41 1.75-1.03l3.58-6.49c.08-.14.12-.31.12-.48 0-.55-.45-1-1-1H5.21l-.94-2H1zm16 16c-1.1 0-1.99.9-1.99 2s.89 2 1.99 2 2-.9 2-2-.9-2-2-2z"/>
-                                </svg>
-                                <span id="cartCountBadge" style="display:none; position:absolute; top:-2px; right:-2px; background:#ef4444; color:#ffffff; font-size:10px; font-weight:800; padding:2px 6px; border-radius:10px; border:2px solid #350080; min-width:18px; text-align:center;">0</span>
-                            </div>
-                        </div>
+                    container.appendChild(div);
+                }
+            }
+        });
 
-                        <div style="position:relative; z-index:2; display:flex; align-items:center; gap:12px;">
-                            <img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQNL3fCb6htQ8MOdxeL8tHluaoCxwd98hPCTalaTF3sIA&s=10" style="width:65px; height:65px; border-radius:50%; border:2px solid white; object-fit:cover; flex-shrink:0; box-shadow:0 4px 10px rgba(0,0,0,0.15);">
-                            <div style="flex:1; padding-right:40px;">
-                                <h1 style="font-size:22px; font-weight:800; margin:0; letter-spacing:-0.5px; line-height:1.1;">Açaí Bom Gosto</h1>
-                                <p style="font-size:13px; opacity:0.95; margin-top:4px; font-weight:500;">Acaiteria Premium</p>
-                            </div>
-                        </div>
-
-                        <div style="position:relative; z-index:2; display:flex; gap:8px; margin-top:12px; font-size:11px; align-items:center; flex-wrap:wrap;">
-                            <span id="badgeStatusLoja" style="background:rgba(255,255,255,0.25); padding:4px 12px; border-radius:20px; font-weight:750;">Verificando horário...</span>
-                            <span style="background:rgba(255,255,255,0.25); padding:4px 12px; border-radius:20px; font-weight:600;">🕒 25 a 30 min</span>
-                            <span style="background:rgba(255,255,255,0.25); padding:4px 12px; border-radius:20px; font-weight:600;">🛵 Taxa: R$ 0,99</span>
-                        </div>
-                    </div>
-
-                    <div style="padding:16px;">
-                        <div style="position:relative; margin-bottom:16px;">
-                            <input type="text" id="inputBusca" placeholder="Pesquise por produtos no cardápio..." onfocus="abrirTelaBusca()" style="width:100%; padding:14px 16px 14px 42px; border-radius:14px; border:1px solid #e5e7eb; background:#fff; font-size:14px; outline:none; box-shadow:0 2px 6px rgba(0,0,0,0.02); cursor:pointer;" readonly>
-                            <svg class="icon" style="position:absolute; top:16px; left:14px; fill:#9ca3af;" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
-                        </div>
-
-                        <div style="display:flex; gap:8px; overflow-x:auto; padding-bottom:8px; margin-bottom:16px;">
-                            <button type="button" id="btnCat_todos" onclick="filtrarCategoria('todos')" style="background:#350080; color:white; border:none; padding:8px 16px; border-radius:20px; font-size:13px; font-weight:600; cursor:pointer; white-space:nowrap;">Tudo</button><button type="button" id="btnCat_Açaí" onclick="filtrarCategoria('Açaí')" style="background:#e5e7eb; color:#374151; border:none; padding:8px 16px; border-radius:20px; font-size:13px; font-weight:600; cursor:pointer; white-space:nowrap;">Açaí</button><button type="button" id="btnCat_Monte seu Açaí" onclick="filtrarCategoria('Monte seu Açaí')" style="background:#e5e7eb; color:#374151; border:none; padding:8px 16px; border-radius:20px; font-size:13px; font-weight:600; cursor:pointer; white-space:nowrap;">Monte seu Açaí</button>
-                        </div>
-
-                        <div id="secaoPedirNovamenteContainer" style="display:none; margin-bottom:24px;">
-                            <h3 style="font-size:15px; font-weight:700; color:#111827; margin-bottom:10px;">Pedir Novamente</h3>
-                            <div id="listaPedirNovamente" style="display:flex; gap:10px; overflow-x:auto; padding-bottom:10px;"></div>
-                        </div>
-
-                        <div id="secaoDestaquesContainer">
-                            <h3 style="font-size:15px; font-weight:700; color:#111827; margin-bottom:10px;">🔥 Mais Pedidos & Destaques</h3>
-                            <div id="listaDestaques" style="display:flex; gap:12px; overflow-x:auto; padding-bottom:10px;"></div>
-                        </div>
-
-                        <div style="margin-top:24px;">
-                            <h3 style="font-size:15px; font-weight:700; color:#111827; margin-bottom:10px;">🍽️ Cardápio Completo</h3>
-                            <div id="listaNormal" style="display:flex; flex-direction:column; gap:12px;"></div>
-                        </div>
-
-                        
-                    <div style="margin-top:30px; padding-top:20px; border-top:1px solid #e5e7eb; text-align:center;">
-                        <h4 style="font-size:14px; font-weight:700; color:#374151; margin-bottom:12px;">Nossas Redes Sociais</h4>
-                        <div style="display:flex; flex-wrap:wrap; justify-content:center; gap:12px;">
-                            <a href="H" target="_blank" style="background:#fff; color:#E1306C; padding:12px; border-radius:50%; font-size:13px; text-decoration:none; border:1px solid #e5e7eb; box-shadow:0 2px 6px rgba(0,0,0,0.02); display:inline-flex; align-items:center; justify-content:center;"><svg class="icon" viewBox="0 0 24 24"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/></svg></a><a href="H" target="_blank" style="background:#fff; color:#000000; padding:12px; border-radius:50%; font-size:13px; text-decoration:none; border:1px solid #e5e7eb; box-shadow:0 2px 6px rgba(0,0,0,0.02); display:inline-flex; align-items:center; justify-content:center;"><svg class="icon" viewBox="0 0 24 24"><path d="M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-.93-.01 2.92.01 5.84-.02 8.75-.08 1.4-.54 2.79-1.35 3.94-1.31 1.92-3.58 3.17-5.91 3.21-1.43.08-2.86-.31-4.08-1.03-2.02-1.19-3.44-3.37-3.65-5.71-.02-.5-.03-1-.01-1.5.18-1.92 1.12-3.72 2.5-5.02 1.54-1.45 3.65-2.23 5.79-2.12.11.01.22.02.33.04v4.06c-.47-.11-.97-.15-1.46-.11-1.06.09-2.03.62-2.67 1.45-.63.82-.87 1.9-.66 2.92.21 1.05 1.01 1.92 2.04 2.22 1.03.3 2.15.09 2.98-.56.78-.61 1.25-1.55 1.3-2.54.03-3.15 0-6.3 0-9.45z"/></svg></a>
-                        </div>
-                    </div>
+        // Sistema de Chat
+        const inputChat = document.getElementById('inputChat');
+        inputChat.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter' && inputChat.value.trim() !== "") {
+                let texto = inputChat.value;
                 
-                    </div>
-
-                    <!-- MODAL DE BUSCA EM TELA CHEIA -->
-                    <div id="modalBuscaTelaCheia" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:#f9fafb; z-index:9990; padding:16px; overflow-y:auto;">
-                        <div style="display:flex; align-items:center; gap:10px; margin-bottom:16px;">
-                            <div style="position:relative; flex:1;">
-                                <input type="text" id="inputBuscaReal" placeholder="Digite o nome do produto..." oninput="filtrarProdutosNaTelaCheia(this.value)" style="width:100%; padding:14px 16px 14px 42px; border-radius:14px; border:1px solid #d1d5db; background:#fff; font-size:14px; outline:none;">
-                                <svg class="icon" style="position:absolute; top:16px; left:14px; fill:#9ca3af;" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
-                            </div>
-                            <button type="button" onclick="fecharTelaBusca()" style="background:#111827; color:white; border:none; padding:14px 16px; border-radius:12px; font-weight:700; font-size:14px; cursor:pointer; white-space:nowrap;">Fechar</button>
-                        </div>
-                        <h4 style="font-size:13px; font-weight:700; color:#6b7280; text-transform:uppercase; margin-bottom:12px;">Resultados da Busca</h4>
-                        <div id="listaResultadosBusca" style="display:flex; flex-direction:column; gap:12px;"></div>
-                    </div>
-
-                    <div id="modalProd" onclick="if(event.target === this) fecharModalComHistorico('modalProd')" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); z-index:200; align-items:flex-end; justify-content:center;">
-                        <div style="background:white; width:100%; max-width:600px; padding:24px; padding-top: 16px; border-radius:24px 24px 0 0; max-height:90vh; overflow-y:auto; position:relative;">
-                            
-                            <button type="button" onclick="fecharModalComHistorico('modalProd')" style="position:absolute; top:12px; right:16px; background:#f3f4f6; color:#9ca3af; width:36px; height:36px; border-radius:50%; border:none; font-size:16px; font-weight:bold; cursor:pointer; display:flex; align-items:center; justify-content:center; z-index:10;">✕</button>
-
-                            <div style="width:100%; height:200px; background:#f3f4f6; border-radius:14px; overflow:hidden; display:flex; align-items:center; justify-content:center; margin-top: 8px;">
-                                <img id="mImg" style="width:100%; height:100%; object-fit:cover;">
-                            </div>
-
-                            <h3 id="mNome" style="margin-top:12px; font-size:18px; font-weight:700; color:#111827; padding-right:30px;"></h3>
-                            <p id="mDesc" style="font-size:13px; color:#6b7280; margin:6px 0;"></p>
-                            
-                            <div style="display:flex; justify-content:space-between; align-items:center; margin-top:8px;">
-                                <h4 id="mPreco" style="color:#350080; font-size:22px; font-weight:800;"></h4>
-                            </div>
-
-                            <div id="mSecaoCustomizacao" style="display:none; margin-top:16px; background:#f9fafb; border:1px solid #e5e7eb; padding:14px; border-radius:12px;">
-                                <h4 style="font-size:14px; font-weight:700; color:#111827; margin-bottom:4px;">Monte do seu jeito</h4>
-                                <p id="mSubtituloCustom" style="font-size:11px; color:#6b7280; margin-bottom:10px;">Selecione os ingredientes:</p>
-                                <div id="mListaIngredientes" style="display:flex; flex-direction:column; gap:8px;"></div>
-                            </div>
-                            
-                            <label style="display:block; margin-top:16px; font-size:12px; font-weight:700; color:#374151;">Observações do Pedido</label>
-                            <textarea id="mObs" placeholder="Adicione uma observação para este pedido..." style="width:100%; padding:12px; border:1px solid #d1d5db; border-radius:10px; margin-top:6px; height:70px; font-size:14px; outline:none;"></textarea>
-                            
-                            <div style="display:flex; justify-content:center; align-items:center; gap:24px; margin:20px 0;">
-                                <button type="button" onclick="mudaQtd(-1)" style="width:42px; height:42px; border:none; background:#f3f4f6; border-radius:50%; font-size:18px; font-weight:bold; cursor:pointer; color:#1f2937;">-</button>
-                                <span id="mQtd" style="font-size:18px; font-weight:700; color:#111827;">1</span>
-                                <button type="button" onclick="mudaQtd(1)" style="width:42px; height:42px; border:none; background:#f3f4f6; border-radius:50%; font-size:18px; font-weight:bold; cursor:pointer; color:#1f2937;">+</button>
-                            </div>
-                            
-                            <button type="button" id="btnModalAddCarrinho" onclick="addAoCarrinho(event)" style="width:100%; background:#350080; color:white; padding:15px; border:none; border-radius:12px; font-weight:700; font-size:16px; cursor:pointer; box-shadow:0 4px 14px rgba(249, 115, 22, 0.3);">Adicionar ao Carrinho</button>
-                        </div>
-                    </div>
-
-                    <div id="modalCart" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:white; z-index:300; overflow-y:auto; padding:20px; max-width: 600px; margin: 0 auto; right: 0;">
-                        <h2 style="border-bottom:1px solid #e5e7eb; padding-bottom:12px; margin-bottom:16px; font-size:18px; font-weight:700; color:#111827;">🛍️ Seu Carrinho</h2>
-                        
-                        <div id="listaCart"></div>
-                        
-                        <button type="button" onclick="fecharModalComHistorico('modalCart')" style="width:100%; background:#f3f4f6; color:#374151; padding:10px; border:1px solid #d1d5db; border-radius:10px; font-weight:600; font-size:13px; margin:12px 0; cursor:pointer;">+ Adicionar mais itens</button>
-
-                        <div style="background:#f9fafb; padding:14px; border-radius:12px; margin:16px 0; border:1px solid #e5e7eb; font-size:14px;">
-                            <div style="display:flex; justify-content:space-between; margin-bottom:6px; color:#4b5563;"><span>Subtotal:</span><span>R$ <span id="subtotalCart">0,00</span></span></div>
-                            <div style="display:flex; justify-content:space-between; margin-bottom:6px; color:#4b5563;"><span>Taxa de Entrega:</span><span>R$ <span id="taxaCartValor">0,00</span></span></div>
-                            <div style="display:flex; justify-content:space-between; font-weight:800; font-size:16px; color:#111827; border-top:1px solid #e5e7eb; padding-top:8px; margin-top:8px;"><span>Total:</span><span style="color:#350080;">R$ <span id="checkoutTotal">0,00</span></span></div>
-                        </div>
-                        
-                        <div style="background:#f9fafb; padding:16px; border-radius:12px; margin-bottom:20px; border:1px solid #e5e7eb;">
-                            <h4 style="margin-bottom:10px; font-size:14px; font-weight:700; color:#374151; display:flex; align-items:center; gap:8px;">
-                                <svg class="icon" viewBox="0 0 24 24"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
-                                Dados de Entrega
-                            </h4>
-                            <input type="text" id="cNome" oninput="salvarDadosUser()" placeholder="Seu Nome Completo" style="width:100%; padding:12px; margin-bottom:10px; border:1px solid #d1d5db; border-radius:10px;">
-                            <input type="text" id="cEnd" oninput="salvarDadosUser()" placeholder="Endereço Completo (Rua, Número, Bairro, Ponto de Referência)" style="width:100%; padding:12px; margin-bottom:10px; border:1px solid #d1d5db; border-radius:10px; height: 80px;" as="textarea">
-
-                            <h4 style="margin:16px 0 8px 0; font-size:14px; font-weight:700; color:#374151; display:flex; align-items:center; gap:8px;">
-                                <svg class="icon" viewBox="0 0 24 24"><path d="M21 18v1c0 1.1-.9 2-2 2H5c-1.11 0-2-.9-2-2V5c0-1.1.89-2 2-2h14c1.1 0 2 .9 2 2v1h-9c-1.11 0-2 .9-2 2v8c0 1.1.89 2 2 2h9zm-9-2h10V8H12v8zm4-2.5c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5z"/></svg>
-                                Forma de Pagamento
-                            </h4>
-                            <select id="cPag" style="width:100%; padding:12px; border:1px solid #d1d5db; border-radius:10px;" onchange="verificaPagamentoEntrega()">
-                                <option value="">Selecione a forma de pagamento...</option>
-                                <option value="Pix">Pix (Na Entrega)</option>
-                                <option value="Dinheiro">Dinheiro (Na Entrega)</option>
-                                <option value="Cartão de Débito">Cartão de Débito (Na Entrega)</option>
-                                <option value="Cartão de Crédito">Cartão de Crédito (Na Entrega)</option>
-                            </select>
-
-                            <div id="boxDinheiroOpcoes" style="display:none; margin-top:12px; background:#ffffff; padding:12px; border-radius:8px; border:1px solid #d1d5db;">
-                                <label style="margin-top:0;">O dinheiro está trocado?</label>
-                                <div style="display:flex; gap:12px; margin-top:6px; margin-bottom:10px;">
-                                    <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-size:13px; text-transform:none; color:#111827; font-weight:normal;">
-                                        <input type="radio" name="opcaoTroco" value="trocado" onclick="toggleTrocoInput(false)" checked style="width:auto; margin-top:0;"> Sim, está trocado
-                                    </label>
-                                    <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-size:13px; text-transform:none; color:#111827; font-weight:normal;">
-                                        <input type="radio" name="opcaoTroco" value="precisa" onclick="toggleTrocoInput(true)" style="width:auto; margin-top:0;"> Preciso de troco
-                                    </label>
-                                </div>
-                                <div id="boxTrocoValor" style="display:none;">
-                                    <label style="margin-top:0;">Troco para quanto? (Informe o valor em dinheiro)</label>
-                                    <input type="text" id="valorTrocoPara" placeholder="Ex: 50.00" style="margin-top:6px;">
-                                </div>
-                            </div>
-                        </div>
-
-                        <button type="button" id="btnFinalizar" onclick="finalizarPedido()" style="width:100%; background:#350080; color:white; padding:16px; border:none; border-radius:12px; font-weight:700; font-size:16px; cursor:pointer; box-shadow:0 4px 14px rgba(249, 115, 22, 0.3);">Enviar Pedido no WhatsApp</button>
-                        <button type="button" onclick="voltarParaTelaInicial()" style="width:100%; background:transparent; color:#6b7280; padding:12px; border:none; margin-top:4px; font-weight:600; cursor:pointer;">Voltar ao Cardápio</button>
-                    </div>
-
-                </div>
-            
-<script>
-                window.carrinho = [];
-                try {
-                    let cartSalvo = localStorage.getItem('appFood_carrinhoCliente');
-                    if(cartSalvo) window.carrinho = JSON.parse(cartSalvo);
-                } catch(e){}
-
-                window.pedidosFinalizadosDB = [];
-                try {
-                    let pedidosSalvos = localStorage.getItem('appFood_pedidosFinalizados');
-                    if(pedidosSalvos) window.pedidosFinalizadosDB = JSON.parse(pedidosSalvos);
-                } catch(e){}
-
-                window.prodAtual = null;
-                window.qtdAtual = 1;
-                window.filtroCat = 'todos';
-                window.lojaAberta = true;
-                window.produtosDB = [{"id":1785783561356,"nome":"Açaí Tradicional 400ml","preco":"18.00","desc":"Monte seu açaí 400ml: 5 complementos","img":"https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTnXYDpvkkVLuW8sDtqVcGsGyrQI1jzzCliWfnLrfaxaA&s=10","categoria":"Monte seu Açaí","destaque":false,"customizavel":true,"ingredientes":"Banana, Morango, Uva, Leite Condensado, Paçoca, Confetes, Leite em Pó, Granulado, Granola, Amendoim, Nutella,","maxIngredientes":7},{"id":1785782673013,"nome":"Açaí Tradicional 500ml","preco":"21.00","desc":"Copo de 500ml: Açaí, leite condensado, paçoca e leite em pó","img":"https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSEbx_tfNFfMwCzStTMIkn97xERhCqJWZoLNRp48hvhWw&s=10","categoria":"Açaí","destaque":false}];
-
-                if(document.getElementById('cNome') && localStorage.getItem('appFood_nome')) document.getElementById('cNome').value = localStorage.getItem('appFood_nome');
-                if(document.getElementById('cEnd') && localStorage.getItem('appFood_end')) document.getElementById('cEnd').value = localStorage.getItem('appFood_end');
-
-                window.verificarConexaoInternet = function() {
-                    let banner = document.getElementById('netStatusBanner');
-                    if (!banner) return;
-                    if (navigator.onLine) {
-                        banner.style.background = "#10b981";
-                        banner.innerText = "Conectado novamente!";
-                        banner.style.display = 'block';
-                        setTimeout(() => {
-                            if (navigator.onLine) banner.style.display = 'none';
-                        }, 3000);
-                    } else {
-                        banner.style.background = "#ef4444";
-                        banner.innerText = "Você está sem internet no momento. Verifique sua conexão.";
-                        banner.style.display = 'block';
-                    }
-                };
-
-                window.addEventListener('online', window.verificarConexaoInternet);
-                window.addEventListener('offline', window.verificarConexaoInternet);
-                window.verificarConexaoInternet();
-
-                window.salvarDadosUser = function() {
-                    if(document.getElementById('cNome')) localStorage.setItem('appFood_nome', document.getElementById('cNome').value);
-                    if(document.getElementById('cEnd')) localStorage.setItem('appFood_end', document.getElementById('cEnd').value);
-                };
-
-                window.salvarCarrinhoCliente = function() {
-                    localStorage.setItem('appFood_carrinhoCliente', JSON.stringify(window.carrinho));
-                };
-
-                window.mostrarSimAlerta = function(texto) {
-                    document.getElementById('simAlertText').innerText = texto;
-                    document.getElementById('simAlertModal').style.display = 'flex';
-                };
-
-                window.fecharSimAlerta = function() {
-                    document.getElementById('simAlertModal').style.display = 'none';
-                };
-
-                window.abrirTelaBusca = function() {
-                    let modalBusca = document.getElementById('modalBuscaTelaCheia');
-                    if(modalBusca) {
-                        modalBusca.style.display = 'block';
-                        document.getElementById('inputBuscaReal').focus();
-                        renderizarListaBusca("");
-                        history.pushState({ modalOpen: 'modalBusca' }, '');
-                    }
-                };
-
-                window.fecharTelaBusca = function() {
-                    let modalBusca = document.getElementById('modalBuscaTelaCheia');
-                    if(modalBusca && modalBusca.style.display === 'block') {
-                        modalBusca.style.display = 'none';
-                        if (window.history.state && window.history.state.modalOpen) {
-                            history.back();
-                        }
-                    }
-                };
-
-                window.filtrarProdutosNaTelaCheia = function(termo) {
-                    renderizarListaBusca(termo);
-                };
-
-                window.renderizarListaBusca = function(termo) {
-                    let container = document.getElementById('listaResultadosBusca');
-                    if(!container) return;
-                    container.innerHTML = "";
-
-                    let filtrados = window.produtosDB.filter(p => {
-                        let matchBusca = p.nome.toLowerCase().includes(termo.toLowerCase()) || (p.desc && p.desc.toLowerCase().includes(termo.toLowerCase()));
-                        return matchBusca;
-                    });
-
-                    if(filtrados.length === 0) {
-                        container.innerHTML = "<p style='text-align:center; color:#6b7280; padding:30px;'>Nenhum produto encontrado para sua busca.</p>";
-                        return;
-                    }
-
-                    filtrados.forEach(p => {
-                        container.innerHTML += window.criarCardHtml(p, false, false);
-                    });
-                };
-
-                window.verificarHorarioLoja = function() {
-                    let abertura = "11:00";
-                    let fechamento = "00:00";
-                    let agora = new Date();
-                    let horaAtual = String(agora.getHours()).padStart(2, '0') + ":" + String(agora.getMinutes()).padStart(2, '0');
-                    let badge = document.getElementById('badgeStatusLoja');
-                    if(!badge) return;
-                    if (abertura <= fechamento) window.lojaAberta = (horaAtual >= abertura && horaAtual <= fechamento);
-                    else window.lojaAberta = (horaAtual >= abertura || horaAtual <= fechamento);
-
-                    if (window.lojaAberta) {
-                        badge.innerText = "🟢 Aberto Agora";
-                        badge.style.background = "rgba(16, 185, 129, 0.4)";
-                    } else {
-                        badge.innerText = "🔴 Fechado (Das " + abertura + " às " + fechamento + ")";
-                        badge.style.background = "rgba(239, 68, 68, 0.5)";
-                    }
-                };
-
-                window.animarProdutoParaCarrinho = function(event, imgUrl) {
-                    let targetIcon = document.getElementById('cartIconContainer');
-                    if(!targetIcon) return;
-
-                    let startRect;
-                    if (event && event.target) {
-                        startRect = event.target.getBoundingClientRect();
-                    } else {
-                        startRect = { clientX: window.innerWidth / 2, clientY: window.innerHeight / 2 };
-                    }
-                    let endRect = targetIcon.getBoundingClientRect();
-
-                    let flyer = document.createElement('div');
-                    flyer.style.position = 'fixed';
-                    flyer.style.zIndex = '99999';
-                    flyer.style.left = (startRect.clientX || startRect.left || 100) + 'px';
-                    flyer.style.top = (startRect.clientY || startRect.top || 100) + 'px';
-                    flyer.style.width = '45px';
-                    flyer.style.height = '45px';
-                    flyer.style.borderRadius = '50%';
-                    flyer.style.backgroundImage = 'url(' + (imgUrl || 'https://via.placeholder.com/600') + ')';
-                    flyer.style.backgroundSize = 'cover';
-                    flyer.style.backgroundPosition = 'center';
-                    flyer.style.boxShadow = '0 5px 15px rgba(0,0,0,0.3)';
-                    flyer.style.transition = 'all 1.8s cubic-bezier(0.2, 0.8, 0.2, 1)';
-                    document.body.appendChild(flyer);
-
-                    setTimeout(() => {
-                        flyer.style.left = (endRect.left + endRect.width / 2 - 22) + 'px';
-                        flyer.style.top = (endRect.top + endRect.height / 2 - 22) + 'px';
-                        flyer.style.transform = 'scale(0.1)';
-                        flyer.style.opacity = '0';
-                    }, 20);
-
-                    setTimeout(() => {
-                        flyer.remove();
-                    }, 1850);
-                };
-
-                window.renderizarVitrine = function() {
-                    window.verificarHorarioLoja();
-                    let listaD = document.getElementById('listaDestaques');
-                    let listaN = document.getElementById('listaNormal');
-                    let secD = document.getElementById('secaoDestaquesContainer');
-                    let secPedirNovamente = document.getElementById('secaoPedirNovamenteContainer');
-                    let listaPedirNovamente = document.getElementById('listaPedirNovamente');
-                    
-                    if(!listaD || !listaN) return;
-
-                    listaD.innerHTML = "";
-                    listaN.innerHTML = "";
-                    listaPedirNovamente.innerHTML = "";
-
-                    if (window.pedidosFinalizadosDB.length > 0 && window.filtroCat === 'todos') {
-                        secPedirNovamente.style.display = 'block';
-                        window.pedidosFinalizadosDB.forEach(p => {
-                            listaPedirNovamente.innerHTML += window.criarCardHtml(p, true, true);
-                        });
-                    } else {
-                        secPedirNovamente.style.display = 'none';
-                    }
-
-                    let filtrados = window.produtosDB.filter(p => {
-                        let matchCat = (window.filtroCat === 'todos' || p.categoria === window.filtroCat);
-                        return matchCat;
-                    });
-
-                    let destaques = filtrados.filter(p => p.destaque);
-                    let normais = filtrados.filter(p => !p.destaque);
-
-                    if(destaques.length === 0) secD.style.display = 'none';
-                    else {
-                        secD.style.display = 'block';
-                        destaques.forEach(p => { listaD.innerHTML += window.criarCardHtml(p, true, false); });
-                    }
-
-                    if(normais.length === 0 && destaques.length === 0) listaN.innerHTML = "<p style='text-align:center; color:#6b7280; padding:30px;'>Nenhum produto cadastrado nesta categoria.</p>";
-                    else normais.forEach(p => { listaN.innerHTML += window.criarCardHtml(p, false, false); });
-
-                    window.atualizarCarrinhoBadge();
-                };
-
-                window.criarCardHtml = function(p, isDestaque, isPedirNovamente = false) {
-                    let isHorizontal = (true && isDestaque) || isPedirNovamente;
-                    let pPreco = parseFloat(p.preco).toFixed(2).replace('.', ',');
-                    let corUser = "#350080";
-
-                    if (isHorizontal) {
-                        let cardWidth = isPedirNovamente ? '130px' : '160px';
-                        let imgHeight = isPedirNovamente ? '85px' : '110px';
-                        let fontSizeTitle = isPedirNovamente ? '12px' : '13px';
-                        return `
-                            <div onclick="abrirDetalhesProduto('${p.id}')" style="min-width:${cardWidth}; width:${cardWidth}; background:#fff; border-radius:14px; padding:10px; box-shadow:0 2px 8px rgba(0,0,0,0.04); border:1px solid #e5e7eb; cursor:pointer; display:flex; flex-direction:column; justify-content:space-between; position:relative;">
-                                <img src="${p.img}" style="width:100%; height:${imgHeight}; border-radius:10px; object-fit:cover;">
-                                <div>
-                                    <div style="font-size:${fontSizeTitle}; font-weight:700; color:#111827; margin-top:6px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${p.nome}</div>
-                                    <div style="font-size:15px; color:${corUser}; font-weight:800; margin-top:4px;">R$ ${pPreco}</div>
-                                </div>
-                                <button type="button" onclick="event.stopPropagation(); abrirDetalhesProduto('${p.id}')" style="background:${corUser}; color:#fff; border:none; width:28px; height:28px; border-radius:50%; font-size:16px; font-weight:bold; display:flex; align-items:center; justify-content:center; cursor:pointer; position:absolute; bottom:10px; right:10px; box-shadow:0 2px 5px rgba(0,0,0,0.2);">+</button>
-                            </div>
-                        `;
-                    } else {
-                        return `
-                            <div style="background:#fff; border-radius:14px; padding:12px; display:flex; gap:12px; box-shadow:0 2px 8px rgba(0,0,0,0.04); border:1px solid #e5e7eb; align-items:center; cursor:pointer; position:relative;" onclick="abrirDetalhesProduto('${p.id}')">
-                                <img src="${p.img}" style="width:85px; height:85px; border-radius:10px; object-fit:cover;">
-                                <div style="flex:1; padding-right:35px;">
-                                    <div style="font-size:15px; font-weight:700; color:#111827;">${p.nome}</div>
-                                    <div style="font-size:12px; color:#6b7280; margin:2px 0; line-height:1.2; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;">${p.desc}</div>
-                                    <div style="display:flex; justify-content:space-between; align-items:center; margin-top:4px;">
-                                        <span style="font-size:16px; color:${corUser}; font-weight:800;">R$ ${pPreco}</span>
-                                    </div>
-                                </div>
-                                <button type="button" onclick="event.stopPropagation(); abrirDetalhesProduto('${p.id}')" style="background:${corUser}; color:#fff; border:none; width:32px; height:32px; border-radius:50%; font-size:20px; font-weight:bold; display:flex; align-items:center; justify-content:center; cursor:pointer; position:absolute; bottom:12px; right:12px; box-shadow:0 2px 5px rgba(0,0,0,0.2);">+</button>
-                            </div>
-                        `;
-                    }
-                };
-
-                window.filtrarCategoria = function(cat) {
-                    window.filtroCat = cat;
-                    let categoriasArr = ["Açaí","Monte seu Açaí"];
-                    let botoes = ['todos', ...categoriasArr];
-                    botoes.forEach(b => {
-                        let btn = document.getElementById('btnCat_' + b);
-                        if(btn) {
-                            if(b === cat) {
-                                btn.style.background = '#350080';
-                                btn.style.color = 'white';
-                            } else {
-                                btn.style.background = '#e5e7eb';
-                                btn.style.color = '#374151';
-                            }
-                        }
-                    });
-                    window.renderizarVitrine();
-                };
-
-                window.abrirDetalhesProduto = function(id) {
-                    let p = window.produtosDB.find(item => item.id == id);
-                    if(!p) return;
-                    prodAtual = { ...p, preco: parseFloat(p.preco) };
-                    qtdAtual = 1;
-                    
-                    document.getElementById('mNome').innerText = p.nome;
-                    document.getElementById('mDesc').innerText = p.desc;
-                    document.getElementById('mPreco').innerHTML = "R$ " + prodAtual.preco.toFixed(2).replace('.', ',');
-                    document.getElementById('mImg').src = p.img;
-                    document.getElementById('mQtd').innerText = qtdAtual;
-                    document.getElementById('mObs').value = "";
-                    
-                    let secCustom = document.getElementById('mSecaoCustomizacao');
-                    let listaIng = document.getElementById('mListaIngredientes');
-                    let subTituloCustom = document.getElementById('mSubtituloCustom');
-                    
-                    if (p.customizavel && p.ingredientes) {
-                        secCustom.style.display = 'block';
-                        let maxLimit = p.maxIngredientes || 3;
-                        subTituloCustom.innerText = "Selecione até " + maxLimit + " ingredientes:";
-                        listaIng.innerHTML = "";
-                        let ingArr = p.ingredientes.split(',').map(i => i.trim()).filter(i => i.length > 0);
-                        ingArr.forEach((ing, iIdx) => {
-                            listaIng.innerHTML += `
-                                <label style="display:flex; align-items:center; gap:8px; font-size:13px; font-weight:normal; color:#111827; text-transform:none; cursor:pointer; margin-top:0;">
-                                    <input type="checkbox" class="checkIngrediente" value="${ing}" onchange="validarLimiteIngredientes(this, ${maxLimit})" style="width:auto; margin-top:0;"> ${ing}
-                                </label>
-                            `;
-                        });
-                    } else {
-                        secCustom.style.display = 'none';
-                        listaIng.innerHTML = "";
-                    }
-
-                    document.getElementById('modalProd').style.display = 'flex';
-                    history.pushState({ modalOpen: 'modalProd' }, '');
-                };
-
-                window.validarLimiteIngredientes = function(element, maxLimit) {
-                    let checks = document.querySelectorAll('.checkIngrediente');
-                    let marcados = 0;
-                    checks.forEach(chk => { if(chk.checked) marcados++; });
-                    if (marcados > maxLimit) {
-                        element.checked = false;
-                        window.mostrarSimAlerta('⚠️ Você pode selecionar no máximo ' + maxLimit + ' itens para este produto.');
-                    }
-                };
-
-                window.mudaQtd = function(val) {
-                    qtdAtual += val;
-                    if(qtdAtual < 1) qtdAtual = 1;
-                    document.getElementById('mQtd').innerText = qtdAtual;
-                };
-
-                window.fecharModalComHistorico = function(id) {
-                    let modal = document.getElementById(id);
-                    if (modal && (modal.style.display === 'flex' || modal.style.display === 'block')) {
-                        modal.style.display = 'none';
-                        if (window.history.state && window.history.state.modalOpen) {
-                            history.back();
-                        }
-                    }
-                };
-
-                window.voltarParaTelaInicial = function() {
-                    let modalCart = document.getElementById('modalCart');
-                    let modalProd = document.getElementById('modalProd');
-                    let modalBusca = document.getElementById('modalBuscaTelaCheia');
-                    if (modalCart) modalCart.style.display = 'none';
-                    if (modalProd) modalProd.style.display = 'none';
-                    if (modalBusca) modalBusca.style.display = 'none';
-                    window.filtroCat = 'todos';
-                    window.renderizarVitrine();
-                    window.scrollTo({ top: 0, behavior: 'smooth' });
-                };
-
-                window.addAoCarrinho = function(e) {
-                    if (!window.lojaAberta) {
-                        window.mostrarSimAlerta('🔴 O estabelecimento está fechado no momento e não está aceitando novos pedidos.');
-                        return;
-                    }
-                    animarProdutoParaCarrinho(e, prodAtual.img);
-                    let obsDigitada = document.getElementById('mObs').value;
-                    
-                    let removidosArr = [];
-                    if (prodAtual.customizavel && prodAtual.ingredientes) {
-                        let checks = document.querySelectorAll('.checkIngrediente');
-                        checks.forEach(chk => {
-                            if (!chk.checked) removidosArr.push(chk.value);
-                        });
-                    }
-
-                    let existente = carrinho.find(item => item.id === prodAtual.id && item.obs === obsDigitada && JSON.stringify(item.removidos || []) === JSON.stringify(removidosArr));
-                    if(existente) existente.qtd += qtdAtual;
-                    else carrinho.push({ ...prodAtual, qtd: qtdAtual, obs: obsDigitada, removidos: removidosArr });
-                    
-                    salvarCarrinhoCliente();
-                    atualizarCarrinhoBadge();
-                    fecharModalComHistorico('modalProd');
-                    fecharTelaBusca();
-                };
-
-                window.atualizarCarrinhoBadge = function() {
-                    let badge = document.getElementById('cartCountBadge');
-                    if(!badge) return;
-                    let totalItens = carrinho.reduce((acc, item) => acc + item.qtd, 0);
-                    if(totalItens > 0) {
-                        badge.style.display = 'block';
-                        badge.innerText = totalItens;
-                    } else {
-                        badge.style.display = 'none';
-                    }
-                };
-
-                window.abrirCarrinho = function() {
-                    renderizarListaCarrinho();
-                    document.getElementById('modalCart').style.display = 'block';
-                    history.pushState({ modalOpen: 'modalCart' }, '');
-                };
-
-                window.renderizarListaCarrinho = function() {
-                    let lista = document.getElementById('listaCart');
-                    if(!lista) return;
-                    lista.innerHTML = "";
-                    let subtotal = 0;
-                    
-                    if(carrinho.length === 0) {
-                        lista.innerHTML = "<p style='text-align:center; color:#6b7280; padding:20px;'>Seu carrinho está vazio.</p>";
-                        document.getElementById('subtotalCart').innerText = "0,00";
-                        document.getElementById('taxaCartValor').innerText = `${(0.99).toFixed(2).replace('.', ',')}`;
-                        document.getElementById('checkoutTotal').innerText = `${(0.99).toFixed(2).replace('.', ',')}`;
-                        return;
-                    }
-
-                    carrinho.forEach((item, index) => {
-                        let sub = item.preco * item.qtd;
-                        subtotal += sub;
-
-                        let removidosHtml = "";
-                        if (item.removidos && item.removidos.length > 0) {
-                            removidosHtml = `<div style="font-size:12px; color:#dc2626; margin-top:4px; font-weight:600;">Sem: ${item.removidos.join(', ')}</div>`;
-                        }
-
-                        lista.innerHTML += `
-                            <div style="background:#f9fafb; border:1px solid #e5e7eb; padding:12px; border-radius:10px; margin-bottom:10px;">
-                                <div style="display:flex; justify-content:space-between; align-items:center;">
-                                    <div style="display:flex; align-items:center; gap:10px;">
-                                        <img src="${item.img}" style="width:45px; height:45px; border-radius:8px; object-fit:cover;">
-                                        <div>
-                                            <strong style="font-size:14px; color:#111827;">${item.nome}</strong>
-                                            ${removidosHtml}
-                                            <div style="font-size:14px; color:#350080; font-weight:800; margin-top:2px;">R$ ${sub.toFixed(2).replace('.', ',')}</div>
-                                        </div>
-                                    </div>
-                                    <button type="button" onclick="removerDoCarrinho(${index})" style="background:none; border:none; color:#dc2626; font-size:12px; font-weight:600; cursor:pointer;">Remover</button>
-                                </div>
-                                <div style="display:flex; gap:8px; margin-top:12px; align-items:center;">
-                                    <div style="display:flex; align-items:center; border:1px solid #d1d5db; border-radius:8px; background:white;">
-                                        <button type="button" onclick="mudarQtdItem(${index}, -1)" style="border:none; background:none; padding:8px 14px; cursor:pointer; font-size:16px; font-weight:bold; color:#111827;">-</button>
-                                        <span style="font-size:14px; font-weight:700; padding:0 8px;">${item.qtd}</span>
-                                        <button type="button" onclick="mudarQtdItem(${index}, 1)" style="border:none; background:none; padding:8px 14px; cursor:pointer; font-size:16px; font-weight:bold; color:#111827;">+</button>
-                                    </div>
-                                    <input type="text" value="${item.obs || ''}" placeholder="Adicione uma observação para este pedido..." oninput="atualizarObsItem(${index}, this.value)" style="flex:1; padding:10px; font-size:13px; margin:0; border-radius:8px; border:1px solid #d1d5db;">
-                                </div>
-                            </div>
-                        `;
-                    });
-
-                    let tEntrega = 0.99;
-                    let totalGeral = subtotal + tEntrega;
-
-                    document.getElementById('subtotalCart').innerText = subtotal.toFixed(2).replace('.', ',');
-                    document.getElementById('taxaCartValor').innerText = tEntrega.toFixed(2).replace('.', ',');
-                    document.getElementById('checkoutTotal').innerText = totalGeral.toFixed(2).replace('.', ',');
-                };
-
-                window.mudarQtdItem = function(index, delta) {
-                    carrinho[index].qtd += delta;
-                    if(carrinho[index].qtd < 1) carrinho[index].qtd = 1;
-                    salvarCarrinhoCliente();
-                    renderizarListaCarrinho();
-                    atualizarCarrinhoBadge();
-                };
-
-                window.atualizarObsItem = function(index, val) { 
-                    carrinho[index].obs = val; 
-                    salvarCarrinhoCliente();
-                };
-
-                window.removerDoCarrinho = function(index) {
-                    carrinho.splice(index, 1);
-                    salvarCarrinhoCliente();
-                    renderizarListaCarrinho();
-                    atualizarCarrinhoBadge();
-                    if(carrinho.length === 0) fecharModalComHistorico('modalCart');
-                };
-
-                window.verificaPagamentoEntrega = function() {
-                    let pg = document.getElementById('cPag').value;
-                    let boxDinheiro = document.getElementById('boxDinheiroOpcoes');
-                    boxDinheiro.style.display = (pg === 'Dinheiro') ? 'block' : 'none';
-                };
-
-                window.toggleTrocoInput = function(precisaTroco) {
-                    let boxTrocoValor = document.getElementById('boxTrocoValor');
-                    boxTrocoValor.style.display = precisaTroco ? 'block' : 'none';
-                };
-
-                window.finalizarPedido = function() {
-                    window.verificarHorarioLoja();
-                    if (!window.lojaAberta) {
-                        window.mostrarSimAlerta('🔴 O estabelecimento está fechado no momento e não pode receber pedidos.');
-                        return;
-                    }
-
-                    let nome = document.getElementById('cNome').value;
-                    let end = document.getElementById('cEnd').value;
-                    let pag = document.getElementById('cPag').value;
-                    
-                    if(!nome || !end || !pag) { 
-                        window.mostrarSimAlerta('⚠️ Por favor, preencha seu nome, endereço completo de entrega e forma de pagamento.'); 
-                        return; 
-                    }
-
-                    let subtotal = carrinho.reduce((acc, i) => acc + (i.preco * i.qtd), 0);
-                    let minCompra = 0;
-
-                    if (subtotal < minCompra) {
-                        window.mostrarSimAlerta('⚠️ O valor mínimo para pedidos nesta loja é de R$ ' + minCompra.toFixed(2).replace('.', ',') + '.');
-                        return;
-                    }
-
-                    let infoTrocoStr = "";
-                    if (pag === 'Dinheiro') {
-                        let radiosTroco = document.getElementsByName('opcaoTroco');
-                        let tipoTroco = "trocado";
-                        for (let r of radiosTroco) {
-                            if (r.checked) tipoTroco = r.value;
-                        }
-
-                        if (tipoTroco === 'precisa') {
-                            let valorTroco = document.getElementById('valorTrocoPara').value;
-                            if (!valorTroco) { 
-                                window.mostrarSimAlerta('⚠️ Por favor, informe para quanto você precisa de troco.'); 
-                                return; 
-                            }
-                            infoTrocoStr = ' (Precisa de troco para R$ ' + valorTroco + ')';
-                        } else {
-                            infoTrocoStr = ' (Dinheiro já trocado)';
-                        }
-                    }
-
-                    let tEntrega = 0.99;
-                    let totalGeral = subtotal + tEntrega;
-
-                    let textoPedido = "🍔 *NOVO PEDIDO - DELIVERY* 🍔%0A%0A";
-                    carrinho.forEach(i => {
-                        textoPedido += `📦 *${i.qtd}x ${i.nome}* - R$ ${(i.preco * i.qtd).toFixed(2).replace('.', ',')} %0A`;
-                        if(i.removidos && i.removidos.length > 0) {
-                            textoPedido += `   _Sem: ${i.removidos.join(', ')}_%0A`;
-                        }
-                        if(i.obs) textoPedido += `   _Obs: ${i.obs}_%0A`;
-                        
-                        let jaExisteNosFinalizados = window.pedidosFinalizadosDB.some(pf => pf.id === i.id);
-                        if (!jaExisteNosFinalizados) {
-                            window.pedidosFinalizadosDB.unshift(i);
-                        }
-                    });
-                    
-                    localStorage.setItem('appFood_pedidosFinalizados', JSON.stringify(window.pedidosFinalizadosDB));
-
-                    textoPedido += `%0A💰 *Subtotal:* R$ ${subtotal.toFixed(2).replace('.', ',')}%0A`;
-                    textoPedido += `🛵 *Taxa de Entrega:* R$ ${tEntrega.toFixed(2).replace('.', ',')}%0A`;
-                    textoPedido += `💵 *Total Geral:* R$ ${totalGeral.toFixed(2).replace('.', ',')}%0A%0A`;
-                    textoPedido += `👤 *Cliente:* ${nome}%0A`;
-                    textoPedido += `📍 *Endereço:* ${end}%0A`;
-                    textoPedido += `💳 *Pagamento:* ${pag}${infoTrocoStr} 🕒 (Na Entrega)`;
-
-                    window.carrinho = [];
-                    salvarCarrinhoCliente();
-                    atualizarCarrinhoBadge();
-
-                    window.open(`https://wa.me/5511954962246?text=${textoPedido}`, '_blank');
-                    window.voltarParaTelaInicial();
-                };
-
-                window.addEventListener('popstate', function(event) {
-                    let modalProd = document.getElementById('modalProd');
-                    let modalCart = document.getElementById('modalCart');
-                    let modalBusca = document.getElementById('modalBuscaTelaCheia');
-                    if (modalProd && modalProd.style.display === 'flex') {
-                        modalProd.style.display = 'none';
-                    } else if (modalCart && modalCart.style.display === 'block') {
-                        modalCart.style.display = 'none';
-                    } else if (modalBusca && modalBusca.style.display === 'block') {
-                        modalBusca.style.display = 'none';
-                    }
+                // Atualiza a mensagem no nó do próprio jogador para aparecer o balão na cabeça dele
+                set(meuRef, { nome: meuNome, x: posX, y: posY, mensagem: texto });
+
+                // Salva também no histórico geral do chat
+                push(ref(db, 'cidade/chat'), { nome: meuNome, texto: texto });
+
+                inputChat.value = "";
+                
+                // Apaga o balão de fala após 4 segundos
+                setTimeout(() => {
+                    set(meuRef, { nome: meuNome, x: posX, y: posY, mensagem: "" });
+                }, 4000);
+            }
+        });
+
+        // Ouve o histórico de chat geral
+        const chatRef = ref(db, 'cidade/chat');
+        onValue(chatRef, (snapshot) => {
+            const mensagensDiv = document.getElementById('mensagens');
+            mensagensDiv.innerHTML = '';
+            const msgs = snapshot.val();
+            if (msgs) {
+                // Pega as últimas mensagens
+                let lista = Object.values(msgs).slice(-15); 
+                lista.forEach(m => {
+                    let p = document.createElement('div');
+                    p.innerHTML = `<b>${m.nome}:</b> ${m.texto}`;
+                    mensagensDiv.appendChild(p);
                 });
-
-                renderizarVitrine();
-            </script>
+                mensagensDiv.scrollTop = mensagensDiv.scrollHeight;
+            }
+        });
+    </script>
 </body>
 </html>
